@@ -20,7 +20,10 @@ import {
   serverTimestamp, 
   Timestamp, 
   deleteDoc,
-  getDocFromServer
+  getDocFromServer,
+  collectionGroup,
+  where,
+  updateDoc
 } from 'firebase/firestore';
 
 // Prioritize environment variables
@@ -96,6 +99,9 @@ export {
   addDoc, 
   serverTimestamp,
   Timestamp,
-  deleteDoc
+  deleteDoc,
+  collectionGroup,
+  where,
+  updateDoc
 };
 export type { User };

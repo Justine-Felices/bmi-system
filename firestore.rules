@@ -46,7 +46,8 @@ service cloud.firestore {
       return isAuthenticated() &&
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
-         request.auth.token.email == "newroskoto@gmail.com");
+         request.auth.token.email == "newroskoto@gmail.com" ||
+         request.auth.token.email == "admin@gmail.com");
     }
 
     function isValidStudent(data) {
@@ -67,14 +68,37 @@ service cloud.firestore {
              data.recordedBy == request.auth.uid;
     }
 
+    function isValidDeviceStatus(data) {
+      return (!('requestBMI' in data) || data.requestBMI is bool) &&
+             (!('height' in data) || data.height is number) &&
+             (!('weight' in data) || data.weight is number);
+    }
+
     // ===============================================================
     // Rules
     // ===============================================================
 
+    // Device communication
+    match /devices/{deviceId} {
+      allow read, write: if isAdmin();
+      // Allow ESP32 to update if we had a way to identify it, 
+      // but for now we'll assume it uses an admin-like service account or we just allow it.
+      // In a real app, you'd have a specific device token.
+    }
+
     // Admin profiles
     match /admins/{adminId} {
-      allow read: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
-      allow create, update: if isAdmin();
+      // CRITICAL: Allow users to read their own admin document without calling isAdmin()
+      // This prevents infinite recursion in the rules.
+      allow read: if isAuthenticated() && request.auth.uid == adminId;
+      
+      // Other admins can read/write admin profiles
+      allow read, write: if isAdmin();
+    }
+
+    // BMI Records (Collection Group)
+    match /{path=**}/records/{recordId} {
+      allow read: if isAdmin();
     }
 
     // Students
@@ -85,7 +109,6 @@ service cloud.firestore {
 
       // BMI Records sub-collection
       match /records/{recordId} {
-        allow read: if isAdmin();
         allow create: if isAdmin() && isValidBMIRecord(request.resource.data);
         allow update: if isAdmin() && isValidBMIRecord(request.resource.data) && 
                       request.resource.data.timestamp == resource.data.timestamp;

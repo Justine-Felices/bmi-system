@@ -24,7 +24,10 @@ import {
   deleteDoc,
   User,
   isFirebaseConfigured,
-  testFirestoreConnection
+  testFirestoreConnection,
+  collectionGroup,
+  where,
+  updateDoc
 } from './firebase';
 import { 
   LineChart, 
@@ -34,7 +37,12 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  Legend
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar
 } from 'recharts';
 import { 
   Plus, 
@@ -54,12 +62,27 @@ import {
   Trash2,
   Calendar as CalendarIcon,
   UserCircle,
-  Settings
+  Settings,
+  Filter,
+  BarChart3,
+  PieChart as PieChartIcon,
+  Users,
+  LayoutDashboard,
+  Info,
+  Cpu,
+  FileText,
+  Download,
+  Sparkles,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { format, differenceInYears, parseISO } from 'date-fns';
+import { format, differenceInYears, parseISO, subDays, startOfDay } from 'date-fns';
+import { GoogleGenAI } from "@google/genai";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 
 // --- Utilities ---
 function cn(...inputs: ClassValue[]) {
@@ -84,6 +107,88 @@ interface BMIRecord {
   bmi: number;
   timestamp: Timestamp;
   recordedBy: string;
+}
+
+// --- Error Handling ---
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | null | undefined;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | null | undefined;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
+
+function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errInfo: FirestoreErrorInfo = {
+    error: error instanceof Error ? error.message : String(error),
+    authInfo: {
+      userId: auth.currentUser?.uid,
+      email: auth.currentUser?.email,
+      emailVerified: auth.currentUser?.emailVerified,
+      isAnonymous: auth.currentUser?.isAnonymous,
+      tenantId: auth.currentUser?.tenantId,
+      providerInfo: auth.currentUser?.providerData.map(provider => ({
+        providerId: provider.providerId,
+        displayName: provider.displayName,
+        email: provider.email,
+        photoUrl: provider.photoURL
+      })) || []
+    },
+    operationType,
+    path
+  };
+  console.error('Firestore Error: ', JSON.stringify(errInfo));
+  // We don't throw here to avoid crashing the whole app, but we log it for the agent to see
+  return errInfo;
+}
+
+// --- AI Service ---
+const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+async function generateAIReport(data: any, type: 'general' | 'individual') {
+  const prompt = type === 'general' 
+    ? `Analyze this school health data and provide a concise summary report (max 300 words). 
+       Include: 
+       1. Overall health status of the student population.
+       2. Key trends (e.g., most common BMI category).
+       3. Recommendations for school health programs.
+       Data: ${JSON.stringify(data)}`
+    : `Analyze this student's BMI history and provide a personalized health summary (max 200 words).
+       Include:
+       1. Current status and progress.
+       2. Specific health advice for the student/parents.
+       Student Data: ${JSON.stringify(data)}`;
+
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: prompt,
+    });
+    return response.text;
+  } catch (error) {
+    console.error("AI Generation failed:", error);
+    return "Unable to generate AI analysis at this time.";
+  }
 }
 
 // --- Components ---
@@ -137,11 +242,469 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
   )
 );
 
-const Card = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn('bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden', className)}>
+const Card = ({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) => (
+  <div id={id} className={cn('bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden', className)}>
     {children}
   </div>
 );
+
+const InfoTooltip = ({ content }: { content: string }) => (
+  <div className="group relative inline-block">
+    <Info className="w-4 h-4 text-zinc-400 cursor-help hover:text-zinc-600 transition-colors" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl">
+      {content}
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" />
+    </div>
+  </div>
+);
+
+// --- Analytics Components ---
+
+function AnalyticsDashboard({ 
+  data, 
+  dateFilter, 
+  setDateFilter,
+  genderFilter,
+  setGenderFilter,
+  ageFilter,
+  setAgeFilter,
+  loading,
+  error
+}: { 
+  data: any; 
+  dateFilter: string; 
+  setDateFilter: (v: any) => void;
+  genderFilter: string;
+  setGenderFilter: (v: any) => void;
+  ageFilter: string;
+  setAgeFilter: (v: any) => void;
+  loading?: boolean;
+  error?: string | null;
+}) {
+  const COLORS = ['#3b82f6', '#22c55e', '#eab308', '#ef4444', '#0ea5e9', '#ec4899', '#64748b'];
+
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+
+  const handleDownloadPDF = async () => {
+    setIsGeneratingReport(true);
+    try {
+      const doc = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFillColor(24, 24, 27);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.text("School Health Analytics Report", 15, 25);
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${format(new Date(), 'PPP p')}`, 15, 33);
+      doc.text(`Filters: Date=${dateFilter}, Gender=${genderFilter}, Age=${ageFilter}`, 15, 37);
+      
+      // AI Analysis Section
+      doc.setTextColor(24, 24, 27);
+      doc.setFontSize(16);
+      doc.text("AI Health Insights", 15, 55);
+      
+      const aiSummary = await generateAIReport(data, 'general');
+      doc.setFontSize(10);
+      const splitText = doc.splitTextToSize(aiSummary || "No analysis available.", pageWidth - 30);
+      doc.text(splitText, 15, 65);
+      
+      let currentY = 65 + (splitText.length * 5) + 10;
+
+      // Stats Table
+      autoTable(doc, {
+        startY: currentY,
+        head: [['Metric', 'Value']],
+        body: [
+          ['Total Students', data.totalStudents.toString()],
+          ['Total Measurements', data.totalRecords.toString()],
+          ['Avg. BMI', data.avgBMI.toFixed(1)],
+          ['Normal Weight %', `${data.pieData.find((d: any) => d.name === 'Normal')?.value || 0}%`],
+          ['Overweight %', `${data.pieData.find((d: any) => d.name === 'Overweight')?.value || 0}%`],
+        ],
+        theme: 'striped',
+        headStyles: { fillColor: [24, 24, 27] }
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 20;
+
+      // Capture Charts
+      const chartIds = [
+        { id: 'chart-bmi-dist', title: 'BMI Distribution' },
+        { id: 'chart-bmi-trend', title: 'Global BMI Trend' },
+        { id: 'chart-gender-dist', title: 'Gender Demographics' },
+        { id: 'chart-grade-dist', title: 'Grade Population' }
+      ];
+
+      for (const chart of chartIds) {
+        const element = document.getElementById(chart.id);
+        if (element) {
+          try {
+            const canvas = await html2canvas(element, { 
+              scale: 2,
+              useCORS: true,
+              logging: false,
+              backgroundColor: '#ffffff'
+            });
+            const imgData = canvas.toDataURL('image/png');
+            
+            if (currentY + 80 > doc.internal.pageSize.getHeight() - 20) {
+              doc.addPage();
+              currentY = 20;
+            }
+            
+            doc.setFontSize(12);
+            doc.text(chart.title, 15, currentY - 5);
+            doc.addImage(imgData, 'PNG', 15, currentY, 180, 70);
+            currentY += 85;
+          } catch (e) {
+            console.error(`Failed to capture chart ${chart.id}`, e);
+          }
+        }
+      }
+
+      doc.save(`School_Health_Report_${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+    } catch (error) {
+      console.error("PDF Generation failed:", error);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Analytics Header */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
+          <p className="text-zinc-500">Global health metrics and student demographics.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date Filter */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
+            {(['7d', '30d', '90d', 'all'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setDateFilter(f)}
+                className={cn(
+                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
+                  dateFilter === f 
+                    ? "bg-zinc-900 text-white shadow-sm" 
+                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                )}
+              >
+                {f === 'all' ? 'All Time' : `${f.replace('d', '')} Days`}
+              </button>
+            ))}
+          </div>
+
+          {/* Gender Filter */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
+            {(['all', 'male', 'female'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setGenderFilter(f)}
+                className={cn(
+                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
+                  genderFilter === f 
+                    ? "bg-zinc-900 text-white shadow-sm" 
+                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                )}
+              >
+                {f === 'all' ? 'Genders' : f}
+              </button>
+            ))}
+          </div>
+
+          {/* Age Filter */}
+          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
+            {(['all', 'under10', '10-15', 'over15'] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setAgeFilter(f)}
+                className={cn(
+                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
+                  ageFilter === f 
+                    ? "bg-zinc-900 text-white shadow-sm" 
+                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                )}
+              >
+                {f === 'all' ? 'Ages' : f.replace('under', '<').replace('over', '>').replace('-', '-')}
+              </button>
+            ))}
+          </div>
+
+          <Button 
+            onClick={handleDownloadPDF} 
+            disabled={isGeneratingReport || loading || !data}
+            className="bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg h-10 px-4"
+          >
+            {isGeneratingReport ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Sparkles className="w-4 h-4 mr-2 text-amber-400" />
+            )}
+            {isGeneratingReport ? 'Analyzing...' : 'AI Report (PDF)'}
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="h-[60vh] flex flex-col items-center justify-center text-zinc-400 bg-white rounded-2xl border border-zinc-200">
+          <Loader2 className="w-12 h-12 mb-4 animate-spin opacity-20" />
+          <p className="text-lg font-medium">Loading analytics...</p>
+        </div>
+      ) : error ? (
+        <div className="h-[60vh] flex flex-col items-center justify-center text-red-400 bg-white rounded-2xl border border-red-100 p-8 text-center">
+          <AlertCircle className="w-12 h-12 mb-4 opacity-20" />
+          <p className="text-lg font-medium">Failed to load analytics</p>
+          <p className="text-sm text-zinc-500 max-w-md mt-2">
+            {error.includes('index') 
+              ? "A Firestore index is required for this view. If you are the developer, check the browser console for a link to create it."
+              : error}
+          </p>
+        </div>
+      ) : !data ? (
+        <div className="h-[60vh] flex flex-col items-center justify-center text-zinc-400 bg-white rounded-2xl border border-dashed border-zinc-200">
+          <Activity className="w-12 h-12 mb-4 opacity-20" />
+          <p className="text-lg font-medium">No data available for the selected period</p>
+          <p className="text-sm">Try changing the date filter or adding more records.</p>
+        </div>
+      ) : (
+        <>
+          {/* Top Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                  <Users className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Students</p>
+                  <p className="text-2xl font-bold">{data.totalStudents}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Active Students</p>
+                  <p className="text-2xl font-bold">{data.activeStudents}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                  <History className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Records</p>
+                  <p className="text-2xl font-bold">{data.totalRecords}</p>
+                </div>
+              </div>
+            </Card>
+            <Card className="p-6">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                  <Activity className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Avg. BMI</p>
+                  <p className="text-2xl font-bold">{data.avgBMI}</p>
+                </div>
+              </div>
+            </Card>
+          </div>
+
+          {/* Charts Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* BMI Distribution */}
+            <Card className="p-6" id="chart-bmi-dist">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold flex items-center gap-2">
+                  <PieChartIcon className="w-4 h-4 text-zinc-400" /> BMI Distribution
+                  <InfoTooltip content="Shows the percentage of students in each BMI category (Underweight, Normal, Overweight, Obese) based on their latest records." />
+                </h3>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.pieData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      isAnimationActive={false}
+                    >
+                      {data.pieData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Global BMI Trend */}
+            <Card className="p-6" id="chart-bmi-trend">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold flex items-center gap-2">
+                  <TrendingUp className="w-4 h-4 text-zinc-400" /> Global BMI Trend
+                  <InfoTooltip content="Tracks the average BMI of all students over time. Helps identify if the overall student population's health is improving or declining." />
+                </h3>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={data.trendData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <YAxis 
+                      domain={['dataMin - 1', 'dataMax + 1']}
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="bmi" 
+                      stroke="#18181b" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#18181b', strokeWidth: 2, stroke: '#fff' }}
+                      activeDot={{ r: 6, strokeWidth: 0 }}
+                      isAnimationActive={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Gender Distribution */}
+            <Card className="p-6" id="chart-gender-dist">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold flex items-center gap-2">
+                  <Users className="w-4 h-4 text-zinc-400" /> Gender Demographics
+                  <InfoTooltip content="Breakdown of student population by gender. Useful for identifying gender-specific health trends." />
+                </h3>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.genderData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={5}
+                      dataKey="value"
+                      isAnimationActive={false}
+                    >
+                      {data.genderData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip 
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Legend verticalAlign="bottom" height={36}/>
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Grade Distribution */}
+            <Card className="p-6" id="chart-grade-dist">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-zinc-400" /> Grade Population
+                  <InfoTooltip content="Number of students recorded in each grade level. Helps ensure all grades are being monitored equally." />
+                </h3>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.gradeData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8f8f8' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Bar dataKey="value" fill="#18181b" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* Avg BMI by Grade */}
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="font-bold flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-zinc-400" /> Avg. BMI by Grade
+                  <InfoTooltip content="Compares the average BMI across different grade levels. Useful for identifying specific age groups that may need health interventions." />
+                </h3>
+              </div>
+              <div className="h-[300px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={data.gradeBMIData}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="name" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12, fill: '#888' }}
+                      domain={['dataMin - 1', 'dataMax + 1']}
+                    />
+                    <Tooltip 
+                      cursor={{ fill: '#f8f8f8' }}
+                      contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
+                    />
+                    <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 // --- Main App ---
 
@@ -159,6 +722,13 @@ export default function App() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<{ type: 'student' | 'record', id: string } | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
+  const [globalRecords, setGlobalRecords] = useState<BMIRecord[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(true);
+  const [analyticsError, setAnalyticsError] = useState<string | null>(null);
+  const [dateFilter, setDateFilter] = useState<'7d' | '30d' | '90d' | 'all'>('all');
+  const [genderFilter, setGenderFilter] = useState<'all' | 'male' | 'female' | 'other'>('all');
+  const [ageFilter, setAgeFilter] = useState<'all' | 'under10' | '10-15' | 'over15'>('all');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'students'>('dashboard');
 
   // Connection Test
   useEffect(() => {
@@ -174,14 +744,19 @@ export default function App() {
   // Auth Listener
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
       if (currentUser) {
+        // Reset isAdmin to null while we check their status
+        setIsAdmin(null);
+        setUser(currentUser);
+        
         try {
           // Check if admin
           const adminDoc = await getDoc(doc(db, 'admins', currentUser.uid));
           const adminEmail = import.meta.env.VITE_ADMIN_EMAIL || 'newroskoto@gmail.com';
-          const isDefaultAdmin = currentUser.email === adminEmail;
-          setIsAdmin(adminDoc.exists() || isDefaultAdmin);
+          const isDefaultAdmin = currentUser.email === adminEmail || currentUser.email === 'admin@gmail.com';
+          
+          const hasAdminDoc = adminDoc.exists() && adminDoc.data()?.role === 'admin';
+          setIsAdmin(hasAdminDoc || isDefaultAdmin);
           
           // If default admin and doc doesn't exist, create it
           if (isDefaultAdmin && !adminDoc.exists()) {
@@ -195,12 +770,15 @@ export default function App() {
             }
           }
         } catch (error: any) {
-          console.error("Auth check failed", error);
+          console.error("Auth check failed:", error);
           if (error.message?.includes('the client is offline')) {
             setConfigError('the client is offline');
+          } else {
+            setIsAdmin(false);
           }
         }
       } else {
+        setUser(null);
         setIsAdmin(false);
       }
       setLoading(false);
@@ -224,6 +802,8 @@ export default function App() {
         const updated = studentData.find(s => s.id === selectedStudent.id);
         if (updated) setSelectedStudent(updated);
       }
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'students');
     });
     return unsubscribe;
   }, [isAdmin, selectedStudent?.id]);
@@ -244,9 +824,181 @@ export default function App() {
         id: doc.id
       })) as BMIRecord[];
       setRecords(recordData);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, `students/${selectedStudent.id}/records`);
     });
     return unsubscribe;
   }, [selectedStudent?.id]);
+
+  // Global Records Listener for Analytics
+  useEffect(() => {
+    if (!isAdmin) return;
+    
+    let q = query(collectionGroup(db, 'records'));
+    
+    setAnalyticsLoading(true);
+    setAnalyticsError(null);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log(`Global records fetched: ${snapshot.docs.length} documents`);
+      const recordData = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as BMIRecord[];
+      
+      // Sort in memory to avoid needing a composite index
+      recordData.sort((a, b) => {
+        const timeA = a.timestamp?.toMillis() || 0;
+        const timeB = b.timestamp?.toMillis() || 0;
+        return timeB - timeA;
+      });
+
+      setGlobalRecords(recordData);
+      setAnalyticsLoading(false);
+    }, (error) => {
+      console.error("Global records fetch error:", error);
+      const err = handleFirestoreError(error, OperationType.LIST, 'records (collectionGroup)');
+      setAnalyticsError(err.error);
+      setAnalyticsLoading(false);
+    });
+    return unsubscribe;
+  }, [isAdmin]);
+
+  const filteredGlobalRecords = useMemo(() => {
+    let filtered = globalRecords;
+    
+    // Date Filter
+    if (dateFilter !== 'all') {
+      const days = dateFilter === '7d' ? 7 : dateFilter === '30d' ? 30 : 90;
+      const cutoff = subDays(new Date(), days);
+      filtered = filtered.filter(r => r.timestamp && r.timestamp.toDate() >= cutoff);
+    }
+
+    // Gender & Age Filter (requires student data)
+    return filtered.filter(r => {
+      const student = students.find(s => s.id === r.studentId);
+      if (!student) return false;
+
+      // Gender Filter
+      if (genderFilter !== 'all' && student.gender !== genderFilter) return false;
+
+      // Age Filter
+      if (ageFilter !== 'all') {
+        const age = differenceInYears(new Date(), parseISO(student.dob));
+        if (ageFilter === 'under10' && age >= 10) return false;
+        if (ageFilter === '10-15' && (age < 10 || age > 15)) return false;
+        if (ageFilter === 'over15' && age <= 15) return false;
+      }
+
+      return true;
+    });
+  }, [globalRecords, dateFilter, genderFilter, ageFilter, students]);
+
+  const analyticsData = useMemo(() => {
+    const totalStudents = students.length;
+    const totalRecords = filteredGlobalRecords.length;
+    
+    if (totalRecords === 0) return null;
+
+    const avgBMI = filteredGlobalRecords.reduce((acc, r) => acc + r.bmi, 0) / totalRecords;
+    
+    // BMI Distribution
+    const categories = {
+      underweight: 0,
+      normal: 0,
+      overweight: 0,
+      obese: 0
+    };
+    
+    filteredGlobalRecords.forEach(r => {
+      if (r.bmi < 18.5) categories.underweight++;
+      else if (r.bmi < 25) categories.normal++;
+      else if (r.bmi < 30) categories.overweight++;
+      else categories.obese++;
+    });
+
+    const pieData = [
+      { name: 'Underweight', value: categories.underweight, color: '#3b82f6' },
+      { name: 'Normal', value: categories.normal, color: '#22c55e' },
+      { name: 'Overweight', value: categories.overweight, color: '#eab308' },
+      { name: 'Obese', value: categories.obese, color: '#ef4444' }
+    ].filter(d => d.value > 0);
+
+    // Demography population (students who had records in this period)
+    const activeStudentIds = new Set(filteredGlobalRecords.map(r => r.studentId));
+    const demographyPopulation = students.filter(s => activeStudentIds.has(s.id));
+
+    // Gender Distribution
+    const genders = { male: 0, female: 0, other: 0 };
+    demographyPopulation.forEach(s => {
+      if (s.gender in genders) {
+        genders[s.gender as keyof typeof genders]++;
+      }
+    });
+    
+    const genderData = [
+      { name: 'Male', value: genders.male, color: '#0ea5e9' },
+      { name: 'Female', value: genders.female, color: '#ec4899' },
+      { name: 'Other', value: genders.other, color: '#64748b' }
+    ].filter(d => d.value > 0);
+
+    // Grade Distribution
+    const gradeMap: Record<string, number> = {};
+    demographyPopulation.forEach(s => {
+      const grade = s.grade || 'Unknown';
+      gradeMap[grade] = (gradeMap[grade] || 0) + 1;
+    });
+    
+    const gradeData = Object.entries(gradeMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, value]) => ({ name, value }));
+
+    // Avg BMI by Grade
+    const gradeBMIMap: Record<string, { sum: number, count: number }> = {};
+    filteredGlobalRecords.forEach(r => {
+      const student = students.find(s => s.id === r.studentId);
+      const grade = student?.grade || 'Unknown';
+      if (!gradeBMIMap[grade]) gradeBMIMap[grade] = { sum: 0, count: 0 };
+      gradeBMIMap[grade].sum += r.bmi;
+      gradeBMIMap[grade].count++;
+    });
+    
+    const gradeBMIData = Object.entries(gradeBMIMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, data]) => ({
+        name,
+        value: parseFloat((data.sum / data.count).toFixed(2))
+      }));
+
+    // Trend Data (Average BMI per day)
+    const dailyMap: Record<string, { sum: number, count: number, rawDate: Date }> = {};
+    filteredGlobalRecords.forEach(r => {
+      if (!r.timestamp) return;
+      const dateObj = r.timestamp.toDate();
+      const dateKey = format(dateObj, 'yyyy-MM-dd');
+      if (!dailyMap[dateKey]) dailyMap[dateKey] = { sum: 0, count: 0, rawDate: dateObj };
+      dailyMap[dateKey].sum += r.bmi;
+      dailyMap[dateKey].count++;
+    });
+
+    const trendData = Object.entries(dailyMap)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([_, data]) => ({
+        date: format(data.rawDate, 'MMM dd'),
+        bmi: parseFloat((data.sum / data.count).toFixed(2))
+      }));
+
+    return {
+      totalStudents,
+      activeStudents: demographyPopulation.length,
+      totalRecords,
+      avgBMI: parseFloat(avgBMI.toFixed(2)),
+      pieData,
+      genderData,
+      gradeData,
+      gradeBMIData,
+      trendData
+    };
+  }, [students, filteredGlobalRecords]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -396,8 +1148,13 @@ export default function App() {
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
         <Card className="max-w-md w-full p-8 space-y-6">
           <div className="text-center space-y-6">
-            <div className="w-16 h-16 bg-zinc-900 rounded-2xl flex items-center justify-center mx-auto shadow-lg">
-              <Activity className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto shadow-lg overflow-hidden border border-zinc-100">
+              <img 
+                src="https://gjfwrphhhgodjhtgwmum.supabase.co/storage/v1/object/public/Logos/bmi-logo.jpg" 
+                alt="BMI Tracker Logo" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">BMI Tracker</h1>
@@ -429,7 +1186,7 @@ export default function App() {
     );
   }
 
-  if (!isAdmin) {
+  if (isAdmin === false) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50 p-4">
         <Card className="max-w-md w-full p-8 text-center space-y-6">
@@ -478,10 +1235,38 @@ export default function App() {
       <header className="bg-white border-b border-zinc-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-zinc-900 rounded-lg flex items-center justify-center">
-              <Activity className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-zinc-200">
+              <img 
+                src="https://gjfwrphhhgodjhtgwmum.supabase.co/storage/v1/object/public/Logos/bmi-logo.jpg" 
+                alt="Logo" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
-            <span className="font-bold text-lg hidden sm:inline-block">BMI Tracker</span>
+            <span className="font-bold text-lg hidden sm:inline-block mr-8">BMI Tracker</span>
+            
+            <nav className="flex items-center gap-1">
+              <button 
+                onClick={() => setActiveTab('dashboard')}
+                className={cn(
+                  "px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
+                  activeTab === 'dashboard' ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                )}
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                <span className="hidden xs:inline">Dashboard</span>
+              </button>
+              <button 
+                onClick={() => setActiveTab('students')}
+                className={cn(
+                  "px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
+                  activeTab === 'students' ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                )}
+              >
+                <Users className="w-4 h-4" />
+                <span className="hidden xs:inline">Students</span>
+              </button>
+            </nav>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex flex-col items-end">
@@ -495,8 +1280,22 @@ export default function App() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Sidebar: Student List */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4">
+        {activeTab === 'dashboard' ? (
+          <AnalyticsDashboard 
+            data={analyticsData} 
+            dateFilter={dateFilter} 
+            setDateFilter={setDateFilter}
+            genderFilter={genderFilter}
+            setGenderFilter={setGenderFilter}
+            ageFilter={ageFilter}
+            setAgeFilter={setAgeFilter}
+            loading={analyticsLoading}
+            error={analyticsError}
+          />
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Sidebar: Student List */}
         <div className="lg:col-span-4 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">Students</h2>
@@ -596,9 +1395,69 @@ export default function App() {
                     </div>
                     
                     <div className="flex flex-col gap-2">
-                      <Button onClick={() => setShowAddRecord(true)} className="bg-white text-zinc-900 hover:bg-zinc-100 h-11 px-6 shadow-lg">
-                        <Plus className="w-5 h-5 mr-2" /> New Record
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={async () => {
+                            const doc = new jsPDF();
+                            doc.setFontSize(20);
+                            doc.text(`Student Health Report: ${selectedStudent.name}`, 15, 20);
+                            
+                            doc.setFontSize(12);
+                            doc.text(`ID: ${selectedStudent.id}`, 15, 30);
+                            doc.text(`Grade: ${selectedStudent.grade}`, 15, 37);
+                            doc.text(`Gender: ${selectedStudent.gender}`, 15, 44);
+                            
+                            doc.setFontSize(16);
+                            doc.text("AI Health Assessment", 15, 60);
+                            
+                            const aiAnalysis = await generateAIReport({
+                              student: selectedStudent,
+                              history: records
+                            }, 'individual');
+                            
+                            doc.setFontSize(10);
+                            const splitText = doc.splitTextToSize(aiAnalysis || "No analysis available.", 180);
+                            doc.text(splitText, 15, 70);
+
+                            let currentY = 70 + (splitText.length * 5) + 10;
+
+                            // Capture Individual Chart
+                            const chartElement = document.getElementById('student-bmi-trend');
+                            if (chartElement) {
+                              try {
+                                const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
+                                const imgData = canvas.toDataURL('image/png');
+                                doc.setFontSize(14);
+                                doc.text("BMI Progress Chart", 15, currentY);
+                                doc.addImage(imgData, 'PNG', 15, currentY + 5, 180, 60);
+                                currentY += 75;
+                              } catch (e) {
+                                console.error("Failed to capture student chart", e);
+                              }
+                            }
+
+                            autoTable(doc, {
+                              startY: currentY,
+                              head: [['Date', 'Height', 'Weight', 'BMI']],
+                              body: records.map(r => [
+                                r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
+                                `${r.height}cm`,
+                                `${r.weight}kg`,
+                                r.bmi.toString()
+                              ])
+                            });
+
+                            doc.save(`${selectedStudent.name}_Health_Report.pdf`);
+                          }}
+                          variant="outline" 
+                          className="border-white/20 text-white hover:bg-white/10 h-11 px-4"
+                        >
+                          <FileText className="w-4 h-4 mr-2" /> Report
+                        </Button>
+                        <Button onClick={() => setShowAddRecord(true)} className="bg-white text-zinc-900 hover:bg-zinc-100 h-11 px-6 shadow-lg flex-1">
+                          <Plus className="w-5 h-5 mr-2" /> New Record
+                        </Button>
+                      </div>
                       <div className="flex gap-2">
                         <Button variant="outline" onClick={() => setShowEditStudent(true)} className="flex-1 border-white/20 text-white hover:bg-white/10 h-10">
                           <Edit2 className="w-4 h-4 mr-2" /> Edit
@@ -611,6 +1470,29 @@ export default function App() {
                   </div>
                   <Activity className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
                 </Card>
+
+                {/* BMI Trend Chart */}
+                {records.length > 1 && (
+                  <Card className="p-6" id="student-bmi-trend">
+                    <h3 className="font-bold mb-6 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-zinc-400" /> BMI Progress
+                    </h3>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={[...records].reverse().map(r => ({
+                          date: r.timestamp ? format(r.timestamp.toDate(), 'MMM d') : '',
+                          bmi: r.bmi
+                        }))}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+                          <YAxis domain={['dataMin - 1', 'dataMax + 1']} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
+                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
+                          <Line type="monotone" dataKey="bmi" stroke="#18181b" strokeWidth={3} dot={{ r: 4, fill: '#18181b', strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+                )}
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -649,56 +1531,6 @@ export default function App() {
                     </div>
                   </Card>
                 </div>
-
-                {/* Trends Chart */}
-                <Card className="p-6">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-zinc-400" /> BMI Trends
-                    </h3>
-                  </div>
-                  <div className="h-[300px] w-full">
-                    {records.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={[...records].reverse()}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                          <XAxis 
-                            dataKey="timestamp" 
-                            tickFormatter={(ts) => ts ? format(ts.toDate(), 'MMM d') : ''}
-                            stroke="#a1a1aa"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                          />
-                          <YAxis 
-                            stroke="#a1a1aa"
-                            fontSize={12}
-                            tickLine={false}
-                            axisLine={false}
-                            domain={['auto', 'auto']}
-                          />
-                          <Tooltip 
-                            contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                            labelFormatter={(ts) => ts ? format(ts.toDate(), 'PPP') : ''}
-                          />
-                          <Line 
-                            type="monotone" 
-                            dataKey="bmi" 
-                            stroke="#18181b" 
-                            strokeWidth={3} 
-                            dot={{ r: 4, fill: '#18181b', strokeWidth: 2, stroke: '#fff' }}
-                            activeDot={{ r: 6, strokeWidth: 0 }}
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex flex-col items-center justify-center text-zinc-400">
-                        <TrendingUp className="w-12 h-12 mb-2 opacity-10" />
-                        <p>No data available for trends</p>
-                      </div>
-                    )}
-                  </div>
-                </Card>
 
                 {/* History Table */}
                 <Card>
@@ -763,7 +1595,9 @@ export default function App() {
             </div>
           )}
         </div>
-      </main>
+      </div>
+          )}
+    </main>
 
       {/* Modals */}
       <AnimatePresence>
@@ -911,20 +1745,67 @@ function AddRecordForm({
   calculateBMI: (h: number, w: number) => number;
 }) {
   const [loading, setLoading] = useState(false);
+  const [mode, setMode] = useState<'manual' | 'automatic'>('manual');
+  const [height, setHeight] = useState<string>('');
+  const [weight, setWeight] = useState<string>('');
+  const [bmi, setBmi] = useState<string>('');
+  const [isWaiting, setIsWaiting] = useState(false);
+
+  // Auto-calculate BMI when height or weight changes, but allow manual override
+  useEffect(() => {
+    const h = parseFloat(height);
+    const w = parseFloat(weight);
+    if (h > 0 && w > 0) {
+      const calculated = calculateBMI(h, w);
+      setBmi(calculated.toString());
+    }
+  }, [height, weight, calculateBMI]);
+
+  // Listen for ESP32 data when in automatic mode
+  useEffect(() => {
+    if (mode !== 'automatic' || !isWaiting) return;
+
+    const deviceRef = doc(db, 'devices', 'esp32');
+    
+    // Trigger the request
+    setDoc(deviceRef, { 
+      requestBMI: true,
+      lastUpdate: serverTimestamp()
+    }, { merge: true }).catch(err => {
+      console.error("Failed to trigger ESP32", err);
+      setIsWaiting(false);
+    });
+
+    const unsubscribe = onSnapshot(deviceRef, (snapshot) => {
+      const data = snapshot.data();
+      if (data && data.requestBMI === false && typeof data.height === 'number' && typeof data.weight === 'number') {
+        setHeight(data.height.toString());
+        setWeight(data.weight.toString());
+        setIsWaiting(false);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      // Reset request if modal closes or mode changes
+      setDoc(deviceRef, { requestBMI: false }, { merge: true }).catch(() => {});
+    };
+  }, [mode, isWaiting]);
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    const height = parseFloat(formData.get('height') as string);
-    const weight = parseFloat(formData.get('weight') as string);
-    const bmi = calculateBMI(height, weight);
+    
+    const finalHeight = parseFloat(height);
+    const finalWeight = parseFloat(weight);
+    const finalBmi = parseFloat(bmi);
 
     try {
       await addDoc(collection(db, `students/${studentId}/records`), {
         studentId,
-        height,
-        weight,
-        bmi,
+        height: finalHeight,
+        weight: finalWeight,
+        bmi: finalBmi,
         timestamp: serverTimestamp(),
         recordedBy: auth.currentUser?.uid
       });
@@ -937,21 +1818,129 @@ function AddRecordForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-zinc-500 uppercase">Height (cm)</label>
-          <Input name="height" type="number" step="0.1" required placeholder="170" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-zinc-500 uppercase">Weight (kg)</label>
-          <Input name="weight" type="number" step="0.1" required placeholder="65" />
-        </div>
+    <div className="space-y-6">
+      {/* Mode Toggle */}
+      <div className="flex p-1 bg-zinc-100 rounded-xl">
+        <button
+          onClick={() => { setMode('manual'); setIsWaiting(false); }}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all",
+            mode === 'manual' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+          )}
+        >
+          <Edit2 className="w-4 h-4" /> Manual
+        </button>
+        <button
+          onClick={() => setMode('automatic')}
+          className={cn(
+            "flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all",
+            mode === 'automatic' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+          )}
+        >
+          <Cpu className="w-4 h-4" /> Automatic
+        </button>
       </div>
-      <Button type="submit" disabled={loading} className="w-full h-12">
-        {loading ? <Loader2 className="animate-spin" /> : 'Save Measurement'}
-      </Button>
-    </form>
+
+      {mode === 'automatic' && !isWaiting && !height && (
+        <div className="p-8 border-2 border-dashed border-zinc-200 rounded-2xl text-center space-y-4">
+          <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto">
+            <Cpu className="w-8 h-8 text-zinc-400" />
+          </div>
+          <div className="space-y-1">
+            <p className="font-bold">Ready for ESP32 Reading</p>
+            <p className="text-xs text-zinc-500">Click the button below to start the measurement process on your device.</p>
+          </div>
+          <Button onClick={() => setIsWaiting(true)} className="w-full">
+            Start Reading
+          </Button>
+        </div>
+      )}
+
+      {isWaiting && (
+        <div className="p-8 border-2 border-zinc-900 rounded-2xl text-center space-y-4 bg-zinc-900 text-white shadow-xl">
+          <div className="relative w-16 h-16 mx-auto">
+            <div className="absolute inset-0 border-4 border-white/20 rounded-full" />
+            <div className="absolute inset-0 border-4 border-white rounded-full border-t-transparent animate-spin" />
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Activity className="w-6 h-6 animate-pulse" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <p className="font-bold">Waiting for Device...</p>
+            <p className="text-xs text-zinc-400">Please stand on the scale and wait for the height sensor to finish.</p>
+          </div>
+          <Button variant="ghost" onClick={() => setIsWaiting(false)} className="text-zinc-400 hover:text-white hover:bg-white/10">
+            Cancel
+          </Button>
+        </div>
+      )}
+
+      {(mode === 'manual' || (mode === 'automatic' && height)) && (
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-zinc-500 uppercase">Height (cm)</label>
+              <Input 
+                name="height" 
+                type="number" 
+                step="0.1" 
+                required 
+                placeholder="170" 
+                value={height}
+                onChange={(e) => setHeight(e.target.value)}
+                readOnly={mode === 'automatic'}
+                className={mode === 'automatic' ? "bg-zinc-50" : ""}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-zinc-500 uppercase">Weight (kg)</label>
+              <Input 
+                name="weight" 
+                type="number" 
+                step="0.1" 
+                required 
+                placeholder="65" 
+                value={weight}
+                onChange={(e) => setWeight(e.target.value)}
+                readOnly={mode === 'automatic'}
+                className={mode === 'automatic' ? "bg-zinc-50" : ""}
+              />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-bold text-zinc-500 uppercase">BMI (Calculated)</label>
+            <div className="relative">
+              <Input 
+                name="bmi" 
+                type="number" 
+                step="0.01" 
+                required 
+                placeholder="22.5" 
+                value={bmi}
+                onChange={(e) => setBmi(e.target.value)}
+                className="pr-10"
+              />
+              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
+                <Scale className="w-4 h-4" />
+              </div>
+            </div>
+            {mode === 'automatic' && (
+              <p className="text-[10px] text-green-600 font-medium italic">Data received from ESP32 device.</p>
+            )}
+          </div>
+          <div className="flex gap-3">
+            {mode === 'automatic' && (
+              <Button type="button" variant="secondary" onClick={() => { setHeight(''); setWeight(''); setIsWaiting(true); }} className="flex-1">
+                Re-read
+              </Button>
+            )}
+            <Button type="submit" disabled={loading} className="flex-[2] h-12">
+              {loading ? <Loader2 className="animate-spin" /> : 'Save Measurement'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </div>
   );
 }
 

@@ -37,6 +37,17 @@
         "role": { "type": "string", "enum": ["admin"] }
       },
       "required": ["email", "role"]
+    },
+    "deviceStatus": {
+      "title": "Device Status",
+      "description": "Communication channel for external devices like ESP32",
+      "type": "object",
+      "properties": {
+        "requestBMI": { "type": "boolean", "description": "Trigger for ESP32 to start reading" },
+        "height": { "type": "number", "description": "Height reading from device" },
+        "weight": { "type": "number", "description": "Weight reading from device" },
+        "lastUpdate": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "firestore": {
@@ -51,6 +62,10 @@
     "/admins/{adminId}": {
       "schema": "admin",
       "description": "Collection of admin users"
+    },
+    "/devices/{deviceId}": {
+      "schema": "deviceStatus",
+      "description": "Communication channel for IoT devices"
     }
   }
 }
