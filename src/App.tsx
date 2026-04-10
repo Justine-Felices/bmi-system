@@ -147,7 +147,7 @@ const Card = ({ children, className }: { children: React.ReactNode; className?: 
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [students, setStudents] = useState<Student[]>([]);
   const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
@@ -383,7 +383,7 @@ export default function App() {
     );
   }
 
-  if (loading) {
+  if (loading || (user && isAdmin === null)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-zinc-50">
         <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
