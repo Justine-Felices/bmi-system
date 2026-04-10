@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "student": {
+      "title": "Student",
+      "description": "Student profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique student ID or roll number" },
+        "name": { "type": "string", "description": "Full name of the student" },
+        "grade": { "type": "string", "description": "Current grade or class" },
+        "dob": { "type": "string", "format": "date", "description": "Date of birth" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"], "description": "Gender" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "dob", "gender"]
+    },
+    "bmiRecord": {
+      "title": "BMI Record",
+      "description": "A single BMI measurement for a student",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "description": "Reference to the student ID" },
+        "height": { "type": "number", "description": "Height in centimeters" },
+        "weight": { "type": "number", "description": "Weight in kilograms" },
+        "bmi": { "type": "number", "description": "Calculated BMI value" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "recordedBy": { "type": "string", "description": "UID of the admin who recorded it" }
+      },
+      "required": ["studentId", "height", "weight", "bmi", "timestamp"]
+    },
+    "admin": {
+      "title": "Admin",
+      "description": "Admin user profile",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin"] }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/students/{studentId}": {
+      "schema": "student",
+      "description": "Collection of student profiles"
+    },
+    "/students/{studentId}/records/{recordId}": {
+      "schema": "bmiRecord",
+      "description": "Sub-collection of BMI records for a specific student"
+    },
+    "/admins/{adminId}": {
+      "schema": "admin",
+      "description": "Collection of admin users"
+    }
+  }
+}

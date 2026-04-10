@@ -1,0 +1,101 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: admins
+// Document ID: {adminId} (Firebase Auth UID)
+// Fields:
+//   - email: string (required) - Admin email
+//   - role: string (required, enum: ['admin']) - User role
+//
+// Collection: students
+// Document ID: {studentId} (Custom ID or Auto-ID)
+// Fields:
+//   - id: string (required) - Student ID/Roll number
+//   - name: string (required) - Full name
+//   - grade: string (optional) - Grade level
+//   - dob: string (required) - Date of birth (YYYY-MM-DD)
+//   - gender: string (required, enum: ['male', 'female', 'other']) - Gender
+//   - createdAt: timestamp (required) - Creation time
+//
+// Collection: students/{studentId}/records
+// Document ID: {recordId} (Auto-ID)
+// Fields:
+//   - studentId: string (required) - Reference to student
+//   - height: number (required) - Height in cm
+//   - weight: number (required) - Weight in kg
+//   - bmi: number (required) - Calculated BMI
+//   - timestamp: timestamp (required) - Measurement time
+//   - recordedBy: string (required) - Admin UID
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
+         request.auth.token.email == "newroskoto@gmail.com");
+    }
+
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'name', 'dob', 'gender']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.dob is string && data.dob.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
+             data.gender in ['male', 'female', 'other'] &&
+             (!('grade' in data) || (data.grade is string && data.grade.size() < 20));
+    }
+
+    function isValidBMIRecord(data) {
+      return data.keys().hasAll(['studentId', 'height', 'weight', 'bmi', 'timestamp', 'recordedBy']) &&
+             data.studentId is string &&
+             data.height is number && data.height > 0 && data.height < 300 &&
+             data.weight is number && data.weight > 0 && data.weight < 500 &&
+             data.bmi is number && data.bmi > 0 && data.bmi < 100 &&
+             data.recordedBy == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // Admin profiles
+    match /admins/{adminId} {
+      allow read: if isAuthenticated() && (request.auth.uid == adminId || isAdmin());
+      allow create, update: if isAdmin();
+    }
+
+    // Students
+    match /students/{studentId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidStudent(request.resource.data);
+      allow delete: if isAdmin();
+
+      // BMI Records sub-collection
+      match /records/{recordId} {
+        allow read: if isAdmin();
+        allow create: if isAdmin() && isValidBMIRecord(request.resource.data);
+        allow update: if isAdmin() && isValidBMIRecord(request.resource.data) && 
+                      request.resource.data.timestamp == resource.data.timestamp;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
