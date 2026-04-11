@@ -96,6 +96,7 @@ interface Student {
   grade?: string;
   dob: string; // YYYY-MM-DD
   gender: 'male' | 'female' | 'other';
+  allergies?: string[];
   createdAt: Timestamp;
 }
 
@@ -105,6 +106,7 @@ interface BMIRecord {
   height: number;
   weight: number;
   bmi: number;
+  healthIssues?: string[];
   timestamp: Timestamp;
   recordedBy: string;
 }
@@ -1392,6 +1394,17 @@ export default function App() {
                           <UserCircle className="w-4 h-4" /> {selectedStudent.gender}
                         </span>
                       </div>
+
+                      {selectedStudent.allergies && selectedStudent.allergies.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-2 mt-2">
+                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Allergies:</span>
+                          {selectedStudent.allergies.map(a => (
+                            <span key={a} className="px-2 py-0.5 bg-red-500/20 text-red-200 text-[10px] font-bold rounded border border-red-500/30">
+                              {a}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     
                     <div className="flex flex-col gap-2">
@@ -1406,9 +1419,10 @@ export default function App() {
                             doc.text(`ID: ${selectedStudent.id}`, 15, 30);
                             doc.text(`Grade: ${selectedStudent.grade}`, 15, 37);
                             doc.text(`Gender: ${selectedStudent.gender}`, 15, 44);
+                            doc.text(`Allergies: ${selectedStudent.allergies?.join(', ') || 'None'}`, 15, 51);
                             
                             doc.setFontSize(16);
-                            doc.text("AI Health Assessment", 15, 60);
+                            doc.text("AI Health Assessment", 15, 65);
                             
                             const aiAnalysis = await generateAIReport({
                               student: selectedStudent,
@@ -1438,12 +1452,13 @@ export default function App() {
 
                             autoTable(doc, {
                               startY: currentY,
-                              head: [['Date', 'Height', 'Weight', 'BMI']],
+                              head: [['Date', 'Height', 'Weight', 'BMI', 'Health Issues']],
                               body: records.map(r => [
                                 r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
                                 `${r.height}cm`,
                                 `${r.weight}kg`,
-                                r.bmi.toString()
+                                r.bmi.toString(),
+                                r.healthIssues?.join(', ') || 'None'
                               ])
                             });
 
@@ -1547,6 +1562,7 @@ export default function App() {
                           <th className="px-6 py-3">Height</th>
                           <th className="px-6 py-3">Weight</th>
                           <th className="px-6 py-3">BMI</th>
+                          <th className="px-6 py-3">Health Issues</th>
                           <th className="px-6 py-3">Category</th>
                           <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -1558,6 +1574,19 @@ export default function App() {
                             <td className="px-6 py-4">{record.height} cm</td>
                             <td className="px-6 py-4">{record.weight} kg</td>
                             <td className="px-6 py-4 font-bold">{record.bmi}</td>
+                            <td className="px-6 py-4">
+                              <div className="flex flex-wrap gap-1">
+                                {record.healthIssues && record.healthIssues.length > 0 ? (
+                                  record.healthIssues.map(i => (
+                                    <span key={i} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[10px] rounded border border-zinc-200">
+                                      {i}
+                                    </span>
+                                  ))
+                                ) : (
+                                  <span className="text-zinc-400 italic text-xs">None</span>
+                                )}
+                              </div>
+                            </td>
                             <td className="px-6 py-4">
                               <span className={cn("font-medium", getBMICategory(record.bmi).color)}>
                                 {getBMICategory(record.bmi).label}
@@ -1673,6 +1702,22 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
 
 function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () => void }) {
   const [loading, setLoading] = useState(false);
+  const [allergies, setAllergies] = useState<string[]>(student?.allergies || []);
+  const [newAllergy, setNewAllergy] = useState('');
+
+  const commonAllergies = ['Peanuts', 'Dairy', 'Eggs', 'Shellfish', 'Wheat', 'Soy', 'Dust', 'Pollen', 'Latex'];
+
+  const addAllergy = (allergy: string) => {
+    if (allergy && !allergies.includes(allergy)) {
+      setAllergies([...allergies, allergy]);
+      setNewAllergy('');
+    }
+  };
+
+  const removeAllergy = (allergy: string) => {
+    setAllergies(allergies.filter(a => a !== allergy));
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
@@ -1690,6 +1735,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
         grade,
         dob,
         gender,
+        allergies,
         createdAt: student ? student.createdAt : serverTimestamp()
       }, { merge: true });
       onSuccess();
@@ -1728,6 +1774,45 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
         <label className="text-xs font-bold text-zinc-500 uppercase">Grade / Class</label>
         <Input name="grade" placeholder="e.g. Grade 10-A" defaultValue={student?.grade} />
       </div>
+      
+      <div className="space-y-2">
+        <label className="text-xs font-bold text-zinc-500 uppercase">Allergies (Optional)</label>
+        <div className="flex gap-2">
+          <Select 
+            value="" 
+            onChange={(e) => addAllergy(e.target.value)}
+            className="flex-1"
+          >
+            <option value="" disabled>Select Allergy...</option>
+            {commonAllergies.map(a => (
+              <option key={a} value={a}>{a}</option>
+            ))}
+          </Select>
+          <div className="flex-1 flex gap-2">
+            <Input 
+              placeholder="Other..." 
+              value={newAllergy}
+              onChange={(e) => setNewAllergy(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addAllergy(newAllergy);
+                }
+              }}
+            />
+            <Button type="button" onClick={() => addAllergy(newAllergy)} variant="secondary" className="px-3">Add</Button>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 mt-2">
+          {allergies.map(a => (
+            <span key={a} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 text-zinc-700 text-xs font-medium rounded-md">
+              {a}
+              <button type="button" onClick={() => removeAllergy(a)} className="hover:text-red-500">×</button>
+            </span>
+          ))}
+        </div>
+      </div>
+
       <Button type="submit" disabled={loading} className="w-full h-12">
         {loading ? <Loader2 className="animate-spin" /> : student ? 'Update Profile' : 'Create Student Profile'}
       </Button>
@@ -1750,6 +1835,21 @@ function AddRecordForm({
   const [weight, setWeight] = useState<string>('');
   const [bmi, setBmi] = useState<string>('');
   const [isWaiting, setIsWaiting] = useState(false);
+  const [healthIssues, setHealthIssues] = useState<string[]>([]);
+  const [newIssue, setNewIssue] = useState('');
+
+  const commonIssues = ['Fever', 'Cough', 'Cold', 'Headache', 'Stomach Ache', 'Asthma Flare-up', 'Skin Rash', 'Fatigue'];
+
+  const addIssue = (issue: string) => {
+    if (issue && !healthIssues.includes(issue)) {
+      setHealthIssues([...healthIssues, issue]);
+      setNewIssue('');
+    }
+  };
+
+  const removeIssue = (issue: string) => {
+    setHealthIssues(healthIssues.filter(i => i !== issue));
+  };
 
   // Auto-calculate BMI when height or weight changes, but allow manual override
   useEffect(() => {
@@ -1806,6 +1906,7 @@ function AddRecordForm({
         height: finalHeight,
         weight: finalWeight,
         bmi: finalBmi,
+        healthIssues,
         timestamp: serverTimestamp(),
         recordedBy: auth.currentUser?.uid
       });
@@ -1928,6 +2029,45 @@ function AddRecordForm({
               <p className="text-[10px] text-green-600 font-medium italic">Data received from ESP32 device.</p>
             )}
           </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-500 uppercase">Recent Health Issues (Optional)</label>
+            <div className="flex gap-2">
+              <Select 
+                value="" 
+                onChange={(e) => addIssue(e.target.value)}
+                className="flex-1"
+              >
+                <option value="" disabled>Select Issue...</option>
+                {commonIssues.map(i => (
+                  <option key={i} value={i}>{i}</option>
+                ))}
+              </Select>
+              <div className="flex-1 flex gap-2">
+                <Input 
+                  placeholder="Other..." 
+                  value={newIssue}
+                  onChange={(e) => setNewIssue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addIssue(newIssue);
+                    }
+                  }}
+                />
+                <Button type="button" onClick={() => addIssue(newIssue)} variant="secondary" className="px-3">Add</Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 mt-2">
+              {healthIssues.map(i => (
+                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 text-zinc-700 text-xs font-medium rounded-md">
+                  {i}
+                  <button type="button" onClick={() => removeIssue(i)} className="hover:text-red-500">×</button>
+                </span>
+              ))}
+            </div>
+          </div>
+
           <div className="flex gap-3">
             {mode === 'automatic' && (
               <Button type="button" variant="secondary" onClick={() => { setHeight(''); setWeight(''); setIsWaiting(true); }} className="flex-1">

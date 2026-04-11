@@ -10,6 +10,11 @@
         "grade": { "type": "string", "description": "Current grade or class" },
         "dob": { "type": "string", "format": "date", "description": "Date of birth" },
         "gender": { "type": "string", "enum": ["male", "female", "other"], "description": "Gender" },
+        "allergies": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "List of student allergies"
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "dob", "gender"]
@@ -23,6 +28,11 @@
         "height": { "type": "number", "description": "Height in centimeters" },
         "weight": { "type": "number", "description": "Weight in kilograms" },
         "bmi": { "type": "number", "description": "Calculated BMI value" },
+        "healthIssues": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recent health issues observed"
+        },
         "timestamp": { "type": "string", "format": "date-time" },
         "recordedBy": { "type": "string", "description": "UID of the admin who recorded it" }
       },

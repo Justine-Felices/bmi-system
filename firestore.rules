@@ -56,7 +56,8 @@ service cloud.firestore {
              data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
              data.dob is string && data.dob.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.gender in ['male', 'female', 'other'] &&
-             (!('grade' in data) || (data.grade is string && data.grade.size() < 20));
+             (!('grade' in data) || (data.grade is string && data.grade.size() < 20)) &&
+             (!('allergies' in data) || (data.allergies is list && data.allergies.size() <= 20));
     }
 
     function isValidBMIRecord(data) {
@@ -65,7 +66,8 @@ service cloud.firestore {
              data.height is number && data.height > 0 && data.height < 300 &&
              data.weight is number && data.weight > 0 && data.weight < 500 &&
              data.bmi is number && data.bmi > 0 && data.bmi < 100 &&
-             data.recordedBy == request.auth.uid;
+             data.recordedBy == request.auth.uid &&
+             (!('healthIssues' in data) || (data.healthIssues is list && data.healthIssues.size() <= 20));
     }
 
     function isValidDeviceStatus(data) {
