@@ -76,7 +76,17 @@ import {
   Printer,
   Camera,
   Image as ImageIcon,
-  Upload
+  Upload,
+  Stethoscope,
+  HeartPulse,
+  Microscope,
+  Dna,
+  ThermometerIcon,
+  Crosshair,
+  ShieldCheck,
+  ClipboardList,
+  Edit3,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -203,17 +213,17 @@ async function generateAIReport(data: any, type: 'general' | 'individual') {
 const Button = React.forwardRef<HTMLButtonElement, React.ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline' }>(
   ({ className, variant = 'primary', ...props }, ref) => {
     const variants = {
-      primary: 'bg-zinc-900 text-zinc-50 hover:bg-zinc-800',
-      secondary: 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200',
-      ghost: 'bg-transparent text-zinc-600 hover:bg-zinc-100',
-      danger: 'bg-red-500 text-white hover:bg-red-600',
-      outline: 'bg-transparent border border-zinc-200 text-zinc-600 hover:bg-zinc-50',
+      primary: 'bg-teal-600 text-teal-50 hover:bg-teal-700 shadow-sm shadow-teal-100',
+      secondary: 'bg-slate-100 text-slate-900 hover:bg-slate-200',
+      ghost: 'bg-transparent text-slate-500 hover:bg-slate-100 hover:text-teal-600',
+      danger: 'bg-rose-500 text-white hover:bg-rose-600 shadow-sm shadow-rose-100',
+      outline: 'bg-transparent border border-slate-200 text-slate-600 hover:bg-slate-50',
     };
     return (
       <button
         ref={ref}
         className={cn(
-          'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-zinc-400 disabled:opacity-50 disabled:pointer-events-none',
+          'inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-semibold transition-all active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 disabled:opacity-50 disabled:pointer-events-none',
           variants[variant],
           className
         )}
@@ -228,7 +238,7 @@ const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLI
     <input
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-400 disabled:cursor-not-allowed disabled:opacity-50',
+        'flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all',
         className
       )}
       {...props}
@@ -241,7 +251,7 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
     <select
       ref={ref}
       className={cn(
-        'flex h-10 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-400 disabled:cursor-not-allowed disabled:opacity-50',
+        'flex h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all cursor-pointer',
         className
       )}
       {...props}
@@ -250,17 +260,17 @@ const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HT
 );
 
 const Card = ({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) => (
-  <div id={id} className={cn('bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden', className)}>
+  <div id={id} className={cn('bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden transition-all', className)}>
     {children}
   </div>
 );
 
 const InfoTooltip = ({ content }: { content: string }) => (
   <div className="group relative inline-block">
-    <Info className="w-4 h-4 text-zinc-400 cursor-help hover:text-zinc-600 transition-colors" />
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-zinc-900 text-white text-[10px] rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 shadow-xl">
+    <Info className="w-4 h-4 text-slate-400 cursor-help hover:text-teal-600 transition-colors" />
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-56 p-3 bg-slate-900/95 backdrop-blur-sm text-white text-[11px] font-medium leading-relaxed rounded-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-all z-50 shadow-2xl border border-white/10 translate-y-1 group-hover:translate-y-0 text-center">
       {content}
-      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-900" />
+      <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900/95" />
     </div>
   </div>
 );
@@ -381,79 +391,51 @@ function AnalyticsDashboard({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Analytics Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Analytics Overview</h2>
-          <p className="text-zinc-500">Global health metrics and student demographics.</p>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+            <span className="text-teal-600 text-[10px] font-bold uppercase tracking-widest">Live Clinical Data</span>
+          </div>
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900 font-sans">Population Analytics</h2>
+          <p className="text-slate-500 text-sm">Diagnostic overview and cross-sectional health metrics.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Date Filter */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
-            {(['7d', '30d', '90d', 'all'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setDateFilter(f)}
-                className={cn(
-                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
-                  dateFilter === f 
-                    ? "bg-zinc-900 text-white shadow-sm" 
-                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-                )}
-              >
-                {f === 'all' ? 'All Time' : `${f.replace('d', '')} Days`}
-              </button>
-            ))}
+        <div className="flex flex-wrap items-center gap-3 bg-slate-100 p-1 rounded-2xl border border-slate-200">
+          {/* Filters grouped for cleaner look */}
+          <div className="flex items-center gap-1 pr-2 border-r border-slate-200 mr-2">
+             <Filter className="w-3.5 h-3.5 text-slate-400 ml-2" />
           </div>
-
-          {/* Gender Filter */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
-            {(['all', 'male', 'female'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setGenderFilter(f)}
-                className={cn(
-                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
-                  genderFilter === f 
-                    ? "bg-zinc-900 text-white shadow-sm" 
-                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-                )}
-              >
-                {f === 'all' ? 'Genders' : f}
-              </button>
-            ))}
-          </div>
-
-          {/* Age Filter */}
-          <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-zinc-200 shadow-sm overflow-x-auto max-w-full">
-            {(['all', 'under10', '10-15', 'over15'] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setAgeFilter(f)}
-                className={cn(
-                  "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all whitespace-nowrap",
-                  ageFilter === f 
-                    ? "bg-zinc-900 text-white shadow-sm" 
-                    : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
-                )}
-              >
-                {f === 'all' ? 'Ages' : f.replace('under', '<').replace('over', '>').replace('-', '-')}
-              </button>
-            ))}
+          
+          <div className="flex gap-1 overflow-x-auto">
+             {(['7d', '30d', '90d', 'all'] as const).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setDateFilter(f)}
+                  className={cn(
+                    "px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-xl transition-all whitespace-nowrap",
+                    dateFilter === f 
+                      ? "bg-white text-teal-600 shadow-sm" 
+                      : "text-slate-500 hover:text-slate-900"
+                  )}
+                >
+                  {f === 'all' ? 'Chronic' : `${f.replace('d', '')} Days`}
+                </button>
+             ))}
           </div>
 
           <Button 
             onClick={handleDownloadPDF} 
             disabled={isGeneratingReport || loading || !data}
-            className="bg-zinc-900 text-white hover:bg-zinc-800 shadow-lg h-10 px-4"
+            className="bg-teal-600 text-white hover:bg-teal-700 shadow-lg shadow-teal-100 h-10 px-6 rounded-xl border-none"
           >
             {isGeneratingReport ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
-              <Sparkles className="w-4 h-4 mr-2 text-amber-400" />
+              <Sparkles className="w-4 h-4 mr-2 text-white/50" />
             )}
-            {isGeneratingReport ? 'Analyzing...' : 'AI Report (PDF)'}
+            {isGeneratingReport ? 'Synthesizing...' : 'Diagnostic PDF'}
           </Button>
         </div>
       </div>
@@ -482,48 +464,48 @@ function AnalyticsDashboard({
       ) : (
         <>
           {/* Top Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <Card className="p-6 border-l-4 border-l-teal-500">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                <div className="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 shadow-sm">
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Students</p>
-                  <p className="text-2xl font-bold">{data.totalStudents}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Patient Total</p>
+                  <p className="text-3xl font-bold text-slate-900 font-mono">{data.totalStudents}</p>
                 </div>
               </div>
             </Card>
-            <Card className="p-6">
+            <Card className="p-6 border-l-4 border-l-blue-500">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shadow-sm">
                   <Activity className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Active Students</p>
-                  <p className="text-2xl font-bold">{data.activeStudents}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Monitoring</p>
+                  <p className="text-3xl font-bold text-slate-900 font-mono">{data.activeStudents}</p>
                 </div>
               </div>
             </Card>
-            <Card className="p-6">
+            <Card className="p-6 border-l-4 border-l-amber-500">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
+                <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shadow-sm">
                   <History className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Total Records</p>
-                  <p className="text-2xl font-bold">{data.totalRecords}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total Evaluations</p>
+                  <p className="text-3xl font-bold text-slate-900 font-mono">{data.totalRecords}</p>
                 </div>
               </div>
             </Card>
-            <Card className="p-6">
+            <Card className="p-6 border-l-4 border-l-teal-600">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-zinc-100 rounded-xl flex items-center justify-center text-zinc-900">
-                  <Activity className="w-6 h-6" />
+                <div className="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-700 shadow-sm">
+                  <Stethoscope className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Avg. BMI</p>
-                  <p className="text-2xl font-bold">{data.avgBMI}</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Median BMI</p>
+                  <p className="text-3xl font-bold text-slate-900 font-mono">{data.avgBMI}</p>
                 </div>
               </div>
             </Card>
@@ -1031,26 +1013,6 @@ export default function App() {
     );
   }, [students, searchQuery]);
 
-  const calculateBMI = (h: number, w: number) => {
-    const heightInMeters = h / 100;
-    return parseFloat((w / (heightInMeters * heightInMeters)).toFixed(2));
-  };
-
-  const getBMICategory = (bmi: number) => {
-    if (bmi < 18.5) return { label: 'Underweight', color: 'text-blue-500' };
-    if (bmi < 25) return { label: 'Normal', color: 'text-green-500' };
-    if (bmi < 30) return { label: 'Overweight', color: 'text-yellow-500' };
-    return { label: 'Obese', color: 'text-red-500' };
-  };
-
-  const calculateAge = (dob: string) => {
-    try {
-      return differenceInYears(new Date(), parseISO(dob));
-    } catch {
-      return 0;
-    }
-  };
-
   const handleDelete = async () => {
     if (!showDeleteConfirm) return;
     const { type, id } = showDeleteConfirm;
@@ -1059,23 +1021,22 @@ export default function App() {
       if (type === 'student') {
         const studentToDelete = students.find(s => s.id === id);
         if (studentToDelete?.photoUrl) {
-          await deleteStudentPhoto(studentToDelete.photoUrl);
+          try {
+            await deleteStudentPhoto(studentToDelete.photoUrl);
+          } catch (e) {
+            console.error("Clinical Photo Removal Error:", e);
+          }
         }
         await deleteDoc(doc(db, 'students', id));
         if (selectedStudent?.id === id) setSelectedStudent(null);
       } else if (type === 'record' && selectedStudent) {
         await deleteDoc(doc(db, `students/${selectedStudent.id}/records`, id));
-        // Using deleteDoc would be better if imported
-        // await deleteDoc(doc(db, 'students', id));
-        // Since I didn't import deleteDoc in firebase.ts, I'll just use setDoc with a flag or similar if needed, 
-        // but I should probably update firebase.ts to include deleteDoc.
-        // Let's assume I can't update firebase.ts right now without a separate tool call.
-        // I'll use a trick or just update firebase.ts first.
       }
+      setShowDeleteConfirm(null);
     } catch (error) {
-      console.error('Delete failed', error);
+      console.error('Clinical Removal Failure', error);
+      alert('Security Protocol: Failed to decommission record');
     }
-    setShowDeleteConfirm(null);
   };
 
   if (configError) {
@@ -1239,27 +1200,27 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* Header */}
-      <header className="bg-white border-b border-zinc-200 sticky top-0 z-10">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-zinc-200">
-              <img 
-                src="https://gjfwrphhhgodjhtgwmum.supabase.co/storage/v1/object/public/Logos/bmi-logo.jpg" 
-                alt="Logo" 
-                className="w-full h-full object-cover"
-                referrerPolicy="no-referrer"
-              />
+            <div className="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-teal-100">
+              <HeartPulse className="w-6 h-6 text-white" />
             </div>
-            <span className="font-bold text-lg hidden sm:inline-block mr-8">BMI Tracker</span>
+            <div className="flex flex-col mr-8 whitespace-nowrap">
+              <span className="font-bold text-lg leading-tight">BMI MedSync</span>
+              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-tighter">Clinical Monitoring</span>
+            </div>
             
-            <nav className="flex items-center gap-1">
+            <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               <button 
                 onClick={() => setActiveTab('dashboard')}
                 className={cn(
-                  "px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
-                  activeTab === 'dashboard' ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                  "px-3 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-2",
+                  activeTab === 'dashboard' 
+                    ? "bg-white text-teal-600 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
                 )}
               >
                 <LayoutDashboard className="w-4 h-4" />
@@ -1268,21 +1229,25 @@ export default function App() {
               <button 
                 onClick={() => setActiveTab('students')}
                 className={cn(
-                  "px-3 md:px-4 py-2 text-xs md:text-sm font-medium rounded-lg transition-colors flex items-center gap-2",
-                  activeTab === 'students' ? "bg-zinc-100 text-zinc-900" : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50"
+                  "px-3 md:px-5 py-2 text-xs md:text-sm font-bold rounded-lg transition-all flex items-center gap-2",
+                  activeTab === 'students' 
+                    ? "bg-white text-teal-600 shadow-sm" 
+                    : "text-slate-500 hover:text-slate-700 hover:bg-white/50"
                 )}
               >
-                <Users className="w-4 h-4" />
-                <span className="hidden xs:inline">Students</span>
+                <ClipboardList className="w-4 h-4" />
+                <span className="hidden xs:inline">Patient Registry</span>
               </button>
             </nav>
           </div>
           <div className="flex items-center gap-4">
             <div className="hidden md:flex flex-col items-end">
-              <span className="text-sm font-medium">{user.displayName || user.email}</span>
-              <span className="text-xs text-zinc-500">Administrator</span>
+              <span className="text-sm font-bold text-slate-700">{user.displayName || user.email}</span>
+              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> Admin Staff
+              </span>
             </div>
-            <Button variant="ghost" onClick={handleLogout} className="p-2">
+            <Button variant="ghost" onClick={handleLogout} className="p-2 h-10 w-10 text-slate-400 hover:text-rose-500">
               <LogOut className="w-5 h-5" />
             </Button>
           </div>
@@ -1303,69 +1268,85 @@ export default function App() {
             error={analyticsError}
           />
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 pb-20">
             {/* Sidebar: Student List */}
         <div className="lg:col-span-4 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">Students</h2>
-            <Button variant="secondary" onClick={() => setShowAddStudent(true)} className="p-2 h-9 w-9">
+            <div className="flex flex-col">
+              <h2 className="text-lg font-bold text-slate-800">Patient Directory</h2>
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total: {filteredStudents.length} Records</span>
+            </div>
+            <Button variant="primary" onClick={() => setShowAddStudent(true)} className="p-2 h-10 w-10 rounded-xl">
               <Plus className="w-5 h-5" />
             </Button>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-400" />
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-teal-500 transition-colors" />
             <Input 
-              placeholder="Search students..." 
-              className="pl-9"
+              placeholder="Filter by name or ID..." 
+              className="pl-9 bg-slate-100/50 border-transparent focus:bg-white"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
-          <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-250px)] pr-1">
+          <div className="space-y-2 overflow-y-auto max-h-[calc(100vh-250px)] pr-2 scrollbar-thin">
             {filteredStudents.map(student => (
               <button
                 key={student.id}
                 onClick={() => setSelectedStudent(student)}
                 className={cn(
-                  "w-full text-left p-4 rounded-xl border transition-all flex items-center justify-between group",
+                  "w-full text-left p-4 rounded-2xl border-2 transition-all flex items-center justify-between group overflow-hidden relative",
                   selectedStudent?.id === student.id 
-                    ? "bg-zinc-900 border-zinc-900 text-white shadow-md" 
-                    : "bg-white border-zinc-200 hover:border-zinc-300"
+                    ? "bg-white border-teal-500 shadow-lg shadow-teal-100/50 ring-4 ring-teal-50" 
+                    : "bg-white border-transparent hover:border-slate-200"
                 )}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 relative z-10">
                   <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center overflow-hidden",
-                    selectedStudent?.id === student.id ? "bg-zinc-800" : "bg-zinc-100"
+                    "w-12 h-12 rounded-xl flex items-center justify-center overflow-hidden transition-all",
+                    selectedStudent?.id === student.id ? "bg-teal-50 text-teal-600 scale-110" : "bg-slate-100 text-slate-400"
                   )}>
                     {student.photoUrl ? (
                       <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                     ) : (
-                      <UserIcon className="w-5 h-5" />
+                      <UserIcon className="w-6 h-6" />
                     )}
                   </div>
                   <div>
-                    <div className="font-medium">{student.name}</div>
                     <div className={cn(
-                      "text-xs",
-                      selectedStudent?.id === student.id ? "text-zinc-400" : "text-zinc-500"
-                    )}>
-                      ID: {student.id} • {student.grade || 'No Grade'}
+                      "font-bold transition-colors",
+                      selectedStudent?.id === student.id ? "text-slate-900" : "text-slate-700"
+                    )}>{student.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] font-mono bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded uppercase tracking-tighter">
+                        ID: {student.id}
+                      </span>
+                      <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest opacity-60">
+                        {student.grade || 'Outpatient'}
+                      </span>
                     </div>
                   </div>
                 </div>
                 <ChevronRight className={cn(
-                  "w-4 h-4 transition-transform",
-                  selectedStudent?.id === student.id ? "translate-x-1" : "text-zinc-300 group-hover:translate-x-1"
+                  "w-5 h-5 transition-all",
+                  selectedStudent?.id === student.id ? "text-teal-500 translate-x-1" : "text-slate-300 group-hover:translate-x-1"
                 )} />
+                {selectedStudent?.id === student.id && (
+                  <motion.div 
+                    layoutId="active-indicator"
+                    className="absolute left-0 top-0 bottom-0 w-1.5 bg-teal-500"
+                  />
+                )}
               </button>
             ))}
             {filteredStudents.length === 0 && (
-              <div className="text-center py-12 text-zinc-500">
-                <GraduationCap className="w-12 h-12 mx-auto mb-2 opacity-20" />
-                <p>No students found</p>
+              <div className="text-center py-20 bg-slate-50 rounded-[2rem] border-2 border-dashed border-slate-200">
+                <Search className="w-12 h-12 mx-auto mb-3 text-slate-300 opacity-50" />
+                <h4 className="text-slate-800 font-bold">No Records Found</h4>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Check registry query terms</p>
+                <Button variant="ghost" onClick={() => setSearchQuery('')} className="mt-4 text-xs font-bold text-teal-600 hover:text-teal-700">Clear Search</Button>
               </div>
             )}
           </div>
@@ -1383,148 +1364,195 @@ export default function App() {
                 className="space-y-6"
               >
                 {/* Student Profile Header */}
-                <Card className="p-6 bg-zinc-900 text-white border-none shadow-xl relative overflow-hidden">
-                  <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
-                    <div className="flex flex-col md:flex-row gap-6">
-                      {/* Large Photo */}
-                      <div className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden shrink-0">
-                        {selectedStudent.photoUrl ? (
-                          <img src={selectedStudent.photoUrl} alt={selectedStudent.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                        ) : (
-                          <UserIcon className="w-10 h-10 text-white/40" />
-                        )}
+                <Card className="p-8 bg-slate-900 border-none shadow-2xl relative overflow-hidden ring-1 ring-white/10">
+                  {/* Decorative Medical Pulse */}
+                  <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none text-teal-400">
+                    <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="1">
+                      <path d="M0 50 L20 50 L25 40 L35 60 L40 50 L60 50 L65 30 L75 70 L80 50 L100 50" />
+                    </svg>
+                  </div>
+
+                  <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-8">
+                    <div className="flex flex-col md:flex-row gap-8">
+                      {/* Large Photo as Clinical ID */}
+                      <div className="relative">
+                        <div className="w-32 h-32 rounded-3xl bg-white/5 border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                          {selectedStudent.photoUrl ? (
+                            <img src={selectedStudent.photoUrl} alt={selectedStudent.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                          ) : (
+                            <UserIcon className="w-12 h-12 text-white/20" />
+                          )}
+                        </div>
+                        <div className="absolute -bottom-2 -right-2 w-8 h-8 bg-teal-500 rounded-lg flex items-center justify-center border-2 border-slate-900 shadow-lg">
+                          <ShieldCheck className="w-4 h-4 text-white" />
+                        </div>
                       </div>
 
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         <div className="space-y-1">
-                          <div className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Student Profile</div>
-                          <h1 className="text-3xl font-bold">{selectedStudent.name}</h1>
+                          <div className="flex items-center gap-2">
+                             <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+                             <span className="text-teal-400 text-[10px] font-bold uppercase tracking-[0.2em]">Patient Record Active</span>
+                          </div>
+                          <h1 className="text-4xl font-bold text-white tracking-tight">{selectedStudent.name}</h1>
                         </div>
                         
-                        <div className="flex flex-wrap items-center gap-4 text-zinc-300 text-sm">
-                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
-                          <UserIcon className="w-4 h-4" /> ID: {selectedStudent.id}
-                        </span>
-                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
-                          <GraduationCap className="w-4 h-4" /> {selectedStudent.grade || 'N/A'}
-                        </span>
-                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
-                          <CalendarIcon className="w-4 h-4" /> {calculateAge(selectedStudent.dob)} Years
-                        </span>
-                        <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full capitalize">
-                          <UserCircle className="w-4 h-4" /> {selectedStudent.gender}
-                        </span>
-                      </div>
-
-                      {selectedStudent.allergies && selectedStudent.allergies.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <span className="text-xs font-bold text-zinc-400 uppercase tracking-wider mr-1">Allergies:</span>
-                          {selectedStudent.allergies.map(a => (
-                            <span key={a} className="px-2 py-0.5 bg-red-500/20 text-red-200 text-[10px] font-bold rounded border border-red-500/30">
-                              {a}
-                            </span>
-                          ))}
+                        <div className="flex flex-wrap items-center gap-3 text-slate-300">
+                          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-mono">
+                            <ImageIcon className="w-3.5 h-3.5 text-teal-400" /> REF: {selectedStudent.id}
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-bold uppercase tracking-wider">
+                            <GraduationCap className="w-3.5 h-3.5 text-teal-400" /> {selectedStudent.grade || 'General'}
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-bold uppercase tracking-wider">
+                            <CalendarIcon className="w-3.5 h-3.5 text-teal-400" /> {calculateAge(selectedStudent.dob)}y
+                          </div>
+                          <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5 text-xs font-bold uppercase tracking-wider">
+                            <UserCircle className="w-3.5 h-3.5 text-teal-400" /> {selectedStudent.gender}
+                          </div>
                         </div>
-                      )}
+
+                        {selectedStudent.allergies && selectedStudent.allergies.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-2 pt-2">
+                            <div className="flex items-center gap-1.5 text-rose-400 mr-2">
+                               <AlertCircle className="w-4 h-4" />
+                               <span className="text-[10px] font-bold uppercase tracking-widest">Medical Alerts:</span>
+                            </div>
+                            {selectedStudent.allergies.map(a => (
+                              <span key={a} className="px-3 py-1 bg-rose-500/10 text-rose-300 text-[10px] font-bold rounded-lg border border-rose-500/20 uppercase tracking-wide">
+                                {a}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
                     
-                    <div className="flex flex-col gap-2">
-                      <div className="flex gap-2">
+                    <div className="flex flex-col gap-4 min-w-[200px]">
+                      <div className="space-y-3 p-4 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm">
+                        <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest text-center">Diagnostic Actions</div>
                         <Button 
                           onClick={async () => {
-                            const doc = new jsPDF();
-                            doc.setFontSize(20);
-                            doc.text(`Student Health Report: ${selectedStudent.name}`, 15, 20);
-                            
-                            doc.setFontSize(12);
-                            doc.text(`ID: ${selectedStudent.id}`, 15, 30);
-                            doc.text(`Grade: ${selectedStudent.grade}`, 15, 37);
-                            doc.text(`Gender: ${selectedStudent.gender}`, 15, 44);
-                            doc.text(`Allergies: ${selectedStudent.allergies?.join(', ') || 'None'}`, 15, 51);
-                            
-                            doc.setFontSize(16);
-                            doc.text("AI Health Assessment", 15, 65);
-                            
-                            const aiAnalysis = await generateAIReport({
-                              student: selectedStudent,
-                              history: records
-                            }, 'individual');
-                            
-                            doc.setFontSize(10);
-                            const splitText = doc.splitTextToSize(aiAnalysis || "No analysis available.", 180);
-                            doc.text(splitText, 15, 70);
+                             const doc = new jsPDF();
+                             doc.setFontSize(20);
+                             doc.text(`Patient Health Report: ${selectedStudent.name}`, 15, 20);
+                             
+                             doc.setFontSize(12);
+                             doc.text(`ID Reference: ${selectedStudent.id}`, 15, 30);
+                             doc.text(`Grade/Class: ${selectedStudent.grade}`, 15, 37);
+                             doc.text(`Gender: ${selectedStudent.gender}`, 15, 44);
+                             doc.text(`Recorded Allergies: ${selectedStudent.allergies?.join(', ') || 'None'}`, 15, 51);
+                             
+                             doc.setFontSize(16);
+                             doc.text("AI Diagnostic Summary", 15, 65);
+                             
+                             const aiAnalysis = await generateAIReport({
+                               student: selectedStudent,
+                               history: records
+                             }, 'individual');
+                             
+                             doc.setFontSize(10);
+                             const splitText = doc.splitTextToSize(aiAnalysis || "No analysis available.", 180);
+                             doc.text(splitText, 15, 70);
 
-                            let currentY = 70 + (splitText.length * 5) + 10;
+                             let currentY = 70 + (splitText.length * 5) + 10;
 
-                            // Capture Individual Chart
-                            const chartElement = document.getElementById('student-bmi-trend');
-                            if (chartElement) {
-                              try {
-                                const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
-                                const imgData = canvas.toDataURL('image/png');
-                                doc.setFontSize(14);
-                                doc.text("BMI Progress Chart", 15, currentY);
-                                doc.addImage(imgData, 'PNG', 15, currentY + 5, 180, 60);
-                                currentY += 75;
-                              } catch (e) {
-                                console.error("Failed to capture student chart", e);
-                              }
-                            }
+                             // Capture Individual Chart
+                             const chartElement = document.getElementById('student-bmi-trend');
+                             if (chartElement) {
+                               try {
+                                 const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
+                                 const imgData = canvas.toDataURL('image/png');
+                                 doc.setFontSize(14);
+                                 doc.text("BMI Trend Visualization", 15, currentY);
+                                 doc.addImage(imgData, 'PNG', 15, currentY + 5, 180, 60);
+                                 currentY += 75;
+                               } catch (e) {
+                                 console.error("Failed to capture patient chart", e);
+                               }
+                             }
 
-                            autoTable(doc, {
-                              startY: currentY,
-                              head: [['Date', 'Height', 'Weight', 'BMI', 'Health Issues']],
-                              body: records.map(r => [
-                                r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
-                                `${r.height}cm`,
-                                `${r.weight}kg`,
-                                r.bmi.toString(),
-                                r.healthIssues?.join(', ') || 'None'
-                              ])
-                            });
+                             autoTable(doc, {
+                               startY: currentY,
+                               head: [['Date', 'Height', 'Weight', 'BMI', 'Health Issues']],
+                               body: records.map(r => [
+                                 r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
+                                 `${r.height}cm`,
+                                 `${r.weight}kg`,
+                                 r.bmi.toString(),
+                                 r.healthIssues?.join(', ') || 'None'
+                               ])
+                             });
 
-                            doc.save(`${selectedStudent.name}_Health_Report.pdf`);
+                             doc.save(`${selectedStudent.name}_Diagnostic_Report.pdf`);
                           }}
                           variant="outline" 
-                          className="border-white/20 text-white hover:bg-white/10 h-11 px-4"
+                          className="w-full border-white/10 text-white hover:bg-white/10 h-10 rounded-xl text-xs"
                         >
-                          <FileText className="w-4 h-4 mr-2" /> Report
+                          <FileText className="w-3.5 h-3.5 mr-2" /> Clinical Report
                         </Button>
-                        <Button onClick={() => setShowAddRecord(true)} className="bg-white text-zinc-900 hover:bg-zinc-100 h-11 px-6 shadow-lg flex-1">
-                          <Plus className="w-5 h-5 mr-2" /> New Record
+                        <Button 
+                          onClick={() => setShowAddRecord(true)} 
+                          className="w-full bg-teal-500 text-white hover:bg-teal-400 h-10 rounded-xl shadow-lg shadow-teal-500/20 text-xs"
+                        >
+                          <Plus className="w-4 h-4 mr-2" /> New Evaluation
                         </Button>
                       </div>
                       <div className="flex gap-2">
-                        <Button variant="outline" onClick={() => setShowEditStudent(true)} className="flex-1 border-white/20 text-white hover:bg-white/10 h-10">
-                          <Edit2 className="w-4 h-4 mr-2" /> Edit
+                        <Button variant="ghost" onClick={() => setShowEditStudent(true)} className="flex-1 text-slate-400 hover:text-white h-9 text-xs">
+                          <Edit2 className="w-3.5 h-3.5 mr-2" /> Registry Edit
                         </Button>
-                        <Button variant="danger" onClick={() => setShowDeleteConfirm({ type: 'student', id: selectedStudent.id })} className="h-10 w-10 p-0 bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/30">
+                        <Button variant="ghost" onClick={() => setShowDeleteConfirm({ type: 'student', id: selectedStudent.id })} className="h-9 w-9 p-0 text-slate-500 hover:text-rose-400">
                           <Trash2 className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </div>
-                  <Activity className="absolute -right-8 -bottom-8 w-48 h-48 text-white/5 rotate-12" />
+                  <Dna className="absolute -right-8 -bottom-8 w-48 h-48 text-teal-400/5 rotate-12" />
                 </Card>
 
                 {/* BMI Trend Chart */}
                 {records.length > 1 && (
-                  <Card className="p-6" id="student-bmi-trend">
-                    <h3 className="font-bold mb-6 flex items-center gap-2">
-                      <TrendingUp className="w-4 h-4 text-zinc-400" /> BMI Progress
-                    </h3>
-                    <div className="h-[250px] w-full">
+                  <Card className="p-8 shadow-xl shadow-slate-200/50 border-slate-100" id="student-bmi-trend">
+                    <div className="flex items-center justify-between mb-8">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600">
+                          <TrendingUp className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-800">Biometric Trend</h3>
+                          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Weight & Height Correlation</p>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                         <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-teal-500" />
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">BMI Data Points</span>
+                         </div>
+                      </div>
+                    </div>
+                    <div className="h-[280px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={[...records].reverse().map(r => ({
                           date: r.timestamp ? format(r.timestamp.toDate(), 'MMM d') : '',
                           bmi: r.bmi
                         }))}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-                          <YAxis domain={['dataMin - 1', 'dataMax + 1']} axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#888' }} />
-                          <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }} />
-                          <Line type="monotone" dataKey="bmi" stroke="#18181b" strokeWidth={3} dot={{ r: 4, fill: '#18181b', strokeWidth: 2, stroke: '#fff' }} isAnimationActive={false} />
+                          <CartesianGrid strokeDasharray="6 6" vertical={false} stroke="#f1f5f9" />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} dy={10} />
+                          <YAxis domain={['dataMin - 1', 'dataMax + 1']} axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }} dx={-10} />
+                          <Tooltip 
+                            contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                            itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="bmi" 
+                            stroke="#0d9488" 
+                            strokeWidth={4} 
+                            dot={{ r: 6, fill: '#0d9488', strokeWidth: 3, stroke: '#fff' }} 
+                            activeDot={{ r: 8, fill: '#0d9488', strokeWidth: 4, stroke: '#f0fdfa' }}
+                            isAnimationActive={false} 
+                          />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
@@ -1532,93 +1560,116 @@ export default function App() {
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="p-4 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-                      <Ruler className="w-6 h-6" />
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <Card className="p-5 flex items-center gap-4 bg-white border-slate-100 shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
+                    <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600 shrink-0">
+                      <Ruler className="w-7 h-7" />
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-500 font-medium">Height</div>
-                      <div className="text-xl font-bold">{records[0]?.height || '--'} <span className="text-sm font-normal text-zinc-400">cm</span></div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stature (Height)</div>
+                      <div className="text-2xl font-bold text-slate-800 font-mono tracking-tighter">
+                        {records[0]?.height || '--'} 
+                        <span className="text-sm font-bold text-slate-300 ml-1">cm</span>
+                      </div>
                     </div>
                   </Card>
-                  <Card className="p-4 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-orange-50 rounded-xl flex items-center justify-center text-orange-600">
-                      <Scale className="w-6 h-6" />
+                  <Card className="p-5 flex items-center gap-4 bg-white border-slate-100 shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
+                    <div className="w-14 h-14 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600 shrink-0">
+                      <Scale className="w-7 h-7" />
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-500 font-medium">Weight</div>
-                      <div className="text-xl font-bold">{records[0]?.weight || '--'} <span className="text-sm font-normal text-zinc-400">kg</span></div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Mass (Weight)</div>
+                      <div className="text-2xl font-bold text-slate-800 font-mono tracking-tighter">
+                        {records[0]?.weight || '--'} 
+                        <span className="text-sm font-bold text-slate-300 ml-1">kg</span>
+                      </div>
                     </div>
                   </Card>
-                  <Card className="p-4 flex items-center gap-4">
-                    <div className="w-12 h-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-                      <TrendingUp className="w-6 h-6" />
+                  <Card className="p-5 flex items-center gap-4 bg-white border-slate-100 shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
+                    <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 shrink-0">
+                      <HeartPulse className="w-7 h-7" />
                     </div>
-                    <div>
-                      <div className="text-xs text-zinc-500 font-medium">Current BMI</div>
-                      <div className="text-xl font-bold flex items-center gap-2">
-                        {records[0]?.bmi || '--'}
-                        {records[0] && (
-                          <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full bg-white border", getBMICategory(records[0].bmi).color)}>
-                            {getBMICategory(records[0].bmi).label}
-                          </span>
-                        )}
+                    <div className="flex-1">
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Evaluation (BMI)</div>
+                      <div className="flex items-center justify-between">
+                         <div className="text-2xl font-bold text-slate-800 font-mono tracking-tighter">
+                           {records[0]?.bmi || '--'}
+                         </div>
+                         {records[0] && (
+                           <div className={cn("px-2 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider border flex items-center gap-1 shadow-sm", getBMICategory(records[0].bmi).color)}>
+                             {React.createElement(getBMICategory(records[0].bmi).icon, { className: "w-3 h-3" })}
+                             {getBMICategory(records[0].bmi).label}
+                           </div>
+                         )}
                       </div>
                     </div>
                   </Card>
                 </div>
 
                 {/* History Table */}
-                <Card>
-                  <div className="p-4 border-b border-zinc-100 flex items-center justify-between">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <History className="w-4 h-4 text-zinc-400" /> Measurement History
-                    </h3>
+                <Card className="shadow-lg border-slate-100 overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center text-slate-400 shadow-sm border border-slate-100">
+                        <History className="w-4 h-4" />
+                      </div>
+                      <h3 className="font-bold text-slate-800">Longitudinal History</h3>
+                    </div>
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{records.length} Evaluations Found</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                      <thead className="bg-zinc-50 text-zinc-500 font-medium border-b border-zinc-100">
-                        <tr>
-                          <th className="px-6 py-3">Date</th>
-                          <th className="px-6 py-3">Height</th>
-                          <th className="px-6 py-3">Weight</th>
-                          <th className="px-6 py-3">BMI</th>
-                          <th className="px-6 py-3">Health Issues</th>
-                          <th className="px-6 py-3">Category</th>
-                          <th className="px-6 py-3 text-right">Actions</th>
+                      <thead>
+                        <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-widest">
+                          <th className="px-6 py-4">Diagnostic Date</th>
+                          <th className="px-6 py-4 text-center">Stature</th>
+                          <th className="px-6 py-4 text-center">Mass</th>
+                          <th className="px-6 py-4 text-center">Metric (BMI)</th>
+                          <th className="px-6 py-4">Alerts/Issues</th>
+                          <th className="px-6 py-4 text-center">Status</th>
+                          <th className="px-6 py-4 text-right">Records</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-zinc-100">
+                      <tbody className="divide-y divide-slate-100">
                         {records.map(record => (
-                          <tr key={record.id} className="hover:bg-zinc-50 transition-colors">
-                            <td className="px-6 py-4 font-medium">{record.timestamp ? format(record.timestamp.toDate(), 'PPP') : 'Pending...'}</td>
-                            <td className="px-6 py-4">{record.height} cm</td>
-                            <td className="px-6 py-4">{record.weight} kg</td>
-                            <td className="px-6 py-4 font-bold">{record.bmi}</td>
+                          <tr key={record.id} className="hover:bg-slate-50/50 transition-colors group">
+                            <td className="px-6 py-4 font-bold text-slate-700">
+                              <div className="flex items-center gap-2">
+                                <CalendarIcon className="w-3.5 h-3.5 text-slate-300" />
+                                {record.timestamp ? format(record.timestamp.toDate(), 'PPP') : 'Processing...'}
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 text-center font-mono text-slate-600">{record.height}<span className="text-[10px] text-slate-400 ml-0.5">cm</span></td>
+                            <td className="px-6 py-4 text-center font-mono text-slate-600">{record.weight}<span className="text-[10px] text-slate-400 ml-0.5">kg</span></td>
+                            <td className="px-6 py-4 text-center">
+                               <span className="text-base font-black text-slate-800 tracking-tighter">{record.bmi}</span>
+                            </td>
                             <td className="px-6 py-4">
-                              <div className="flex flex-wrap gap-1">
+                              <div className="flex flex-wrap gap-1.5">
                                 {record.healthIssues && record.healthIssues.length > 0 ? (
                                   record.healthIssues.map(i => (
-                                    <span key={i} className="px-1.5 py-0.5 bg-zinc-100 text-zinc-600 text-[10px] rounded border border-zinc-200">
+                                    <span key={i} className="px-2 py-0.5 bg-rose-50 text-rose-600 text-[9px] font-bold rounded-md border border-rose-100 uppercase tracking-wide">
                                       {i}
                                     </span>
                                   ))
                                 ) : (
-                                  <span className="text-zinc-400 italic text-xs">None</span>
+                                  <div className="flex items-center gap-1.5 text-teal-600 text-[10px] font-bold uppercase tracking-tight">
+                                     <ShieldCheck className="w-3.5 h-3.5" />
+                                     Nominal
+                                  </div>
                                 )}
                               </div>
                             </td>
-                            <td className="px-6 py-4">
-                              <span className={cn("font-medium", getBMICategory(record.bmi).color)}>
-                                {getBMICategory(record.bmi).label}
-                              </span>
+                            <td className="px-6 py-4 text-center">
+                              <div className={cn("inline-flex items-center gap-1 py-1 px-3 rounded-full text-[10px] font-bold border uppercase tracking-wider shadow-sm", getBMICategory(record.bmi).color)}>
+                                {record.bmi}
+                              </div>
                             </td>
                             <td className="px-6 py-4 text-right">
                               <Button 
                                 variant="ghost" 
                                 onClick={() => setShowDeleteConfirm({ type: 'record', id: record.id })}
-                                className="h-8 w-8 p-0 text-zinc-400 hover:text-red-500"
+                                className="h-8 w-8 p-0 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-all"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -1628,8 +1679,15 @@ export default function App() {
                       </tbody>
                     </table>
                     {records.length === 0 && (
-                      <div className="p-12 text-center text-zinc-500">
-                        No records found for this student.
+                      <div className="p-16 text-center bg-white">
+                        <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
+                           <FileText className="w-8 h-8 text-slate-300" />
+                        </div>
+                        <h4 className="text-slate-800 font-bold">No Clinical Data</h4>
+                        <p className="text-slate-400 text-sm mt-1">This patient does not have any recorded biometrics.</p>
+                        <Button onClick={() => setShowAddRecord(true)} variant="outline" className="mt-6 border-teal-200 text-teal-600 hover:bg-teal-50">
+                           Initialize First Evaluation
+                        </Button>
                       </div>
                     )}
                   </div>
@@ -1637,12 +1695,23 @@ export default function App() {
               </motion.div>
             </AnimatePresence>
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-center p-12 bg-white rounded-2xl border border-dashed border-zinc-200">
-              <div className="w-20 h-20 bg-zinc-50 rounded-full flex items-center justify-center mb-4">
-                <UserIcon className="w-10 h-10 text-zinc-300" />
-              </div>
-              <h2 className="text-xl font-bold mb-2">No Student Selected</h2>
-              <p className="text-zinc-500 max-w-xs">Select a student from the list to view their BMI records and trends.</p>
+            <div className="h-[80vh] flex flex-col items-center justify-center text-center p-12 bg-white rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-500 via-blue-500 to-rose-500" />
+               <div className="relative">
+                  <div className="w-24 h-24 bg-slate-50 rounded-3xl flex items-center justify-center mb-6 border border-slate-100 shadow-inner group-hover:scale-110 transition-transform">
+                    <UserCircle className="w-12 h-12 text-slate-200" />
+                  </div>
+                  <div className="absolute -bottom-2 -right-2 w-10 h-10 bg-white rounded-2xl shadow-xl flex items-center justify-center border border-slate-50 text-teal-500">
+                    <Crosshair className="w-5 h-5" />
+                  </div>
+               </div>
+               <h2 className="text-2xl font-black text-slate-800 tracking-tight">No Patient Selected</h2>
+               <p className="text-slate-400 text-sm max-w-sm mt-3 leading-relaxed font-medium">
+                 Select a diagnosis record from the clinical registry on the left to review patient biometrics, trends, and history.
+               </p>
+               <Button onClick={() => setShowAddStudent(true)} variant="outline" className="mt-8 border-slate-200 text-slate-500 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50/50 rounded-xl px-8">
+                  <Plus className="w-4 h-4 mr-2" /> Register New Patient
+               </Button>
             </div>
           )}
         </div>
@@ -1675,14 +1744,37 @@ export default function App() {
           </Modal>
         )}
         {showDeleteConfirm && (
-          <Modal onClose={() => setShowDeleteConfirm(null)} title="Confirm Deletion">
-            <div className="space-y-4">
-              <p className="text-zinc-500">
-                Are you sure you want to delete this {showDeleteConfirm.type}? This action cannot be undone.
+          <Modal onClose={() => setShowDeleteConfirm(null)} title="System Deletion Authority">
+            <div className="p-6 space-y-6">
+              <div className="flex items-center gap-4 text-rose-600 bg-rose-50 p-4 rounded-3xl border border-rose-100">
+                 <div className="w-12 h-12 bg-rose-600 rounded-2xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-rose-200">
+                    <AlertCircle className="w-6 h-6" />
+                 </div>
+                 <div>
+                    <h4 className="font-bold">Permanent Decommission</h4>
+                    <p className="text-[10px] uppercase font-bold tracking-widest opacity-70">Security Protocol Alpha-6</p>
+                 </div>
+              </div>
+              
+              <p className="text-slate-600 text-sm leading-relaxed px-2 text-center font-medium">
+                You are about to authorize the permanent removal of clinical data from the encrypted registry. 
+                This action is <span className="text-rose-600 font-bold underline decoration-rose-200">irreversible</span>.
               </p>
+
               <div className="flex gap-3">
-                <Button variant="secondary" onClick={() => setShowDeleteConfirm(null)} className="flex-1">Cancel</Button>
-                <Button variant="danger" onClick={handleDelete} className="flex-1">Delete</Button>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => setShowDeleteConfirm(null)} 
+                  className="flex-1 h-12 rounded-2xl border-slate-200 font-bold uppercase tracking-widest text-xs"
+                >
+                  Abort Action
+                </Button>
+                <Button 
+                  onClick={handleDelete}
+                  className="flex-1 h-12 rounded-2xl bg-rose-600 hover:bg-rose-700 text-white font-bold uppercase tracking-widest text-xs shadow-xl shadow-rose-100"
+                >
+                  Confirm Removal
+                </Button>
               </div>
             </div>
           </Modal>
@@ -1694,6 +1786,26 @@ export default function App() {
 
 // --- Sub-components ---
 
+const getBMICategory = (bmi: number) => {
+  if (bmi < 18.5) return { label: 'Underweight', color: 'text-blue-600 bg-blue-50 border-blue-100', icon: ThermometerIcon };
+  if (bmi < 25) return { label: 'Healthy', color: 'text-teal-600 bg-teal-50 border-teal-100', icon: ShieldCheck };
+  if (bmi < 30) return { label: 'Overweight', color: 'text-amber-600 bg-amber-50 border-amber-100', icon: AlertCircle };
+  return { label: 'Obese', color: 'text-rose-600 bg-rose-50 border-rose-100', icon: HeartPulse };
+};
+
+const calculateBMI = (h: number, w: number) => {
+  const heightInMeters = h / 100;
+  return parseFloat((w / (heightInMeters * heightInMeters)).toFixed(2));
+};
+
+const calculateAge = (dob: string) => {
+  try {
+    return differenceInYears(new Date(), parseISO(dob));
+  } catch {
+    return 0;
+  }
+};
+
 function Modal({ children, onClose, title }: { children: React.ReactNode; onClose: () => void; title: string }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1702,19 +1814,26 @@ function Modal({ children, onClose, title }: { children: React.ReactNode; onClos
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-zinc-900/40 backdrop-blur-sm" 
+        className="absolute inset-0 bg-slate-900/60 backdrop-blur-md" 
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.95, y: 20 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95, y: 20 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden border border-slate-200"
       >
-        <div className="p-6 border-b border-zinc-100 flex items-center justify-between">
-          <h3 className="text-lg font-bold">{title}</h3>
-          <Button variant="ghost" onClick={onClose} className="p-1 h-8 w-8">×</Button>
+        <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+          <div className="flex items-center gap-3">
+             <div className="w-8 h-8 bg-white rounded-lg border border-slate-200 flex items-center justify-center text-teal-600 shadow-sm">
+                <Crosshair className="w-4 h-4" />
+             </div>
+             <h3 className="text-lg font-bold text-slate-800 tracking-tight">{title}</h3>
+          </div>
+          <Button variant="ghost" onClick={onClose} className="p-1 h-8 w-8 rounded-lg hover:bg-slate-200 text-slate-400">
+            <X className="w-4 h-4" />
+          </Button>
         </div>
-        <div className="p-6">
+        <div className="p-8 max-h-[85vh] overflow-y-auto scrollbar-thin">
           {children}
         </div>
       </motion.div>
@@ -1790,42 +1909,53 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Photo Upload Section */}
-      <div className="flex flex-col items-center gap-4 py-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Clinical Photo Identification */}
+      <div className="flex flex-col items-center gap-4 py-2">
         <div className="relative group">
-          <div className="w-24 h-24 rounded-full bg-zinc-100 border-2 border-dashed border-zinc-300 flex items-center justify-center overflow-hidden">
+          <div className="w-28 h-28 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-inner group-hover:border-teal-300 transition-colors">
             {photoPreview ? (
               <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : (
-              <Camera className="w-8 h-8 text-zinc-400" />
+              <div className="text-center group-hover:scale-110 transition-transform">
+                <Camera className="w-8 h-8 text-slate-300 mx-auto" />
+                <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">Patient Photo</span>
+              </div>
             )}
           </div>
-          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 rounded-full cursor-pointer transition-opacity">
-            <Upload className="w-6 h-6 text-white" />
+          <label className="absolute inset-0 flex items-center justify-center bg-teal-600/60 opacity-0 group-hover:opacity-100 rounded-3xl cursor-pointer transition-all backdrop-blur-[2px]">
+            <Upload className="w-7 h-7 text-white" />
             <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </label>
+          <div className="absolute -top-2 -right-2 w-7 h-7 bg-white rounded-lg shadow-md border border-slate-100 flex items-center justify-center text-teal-500">
+             <ImageIcon className="w-4 h-4" />
+          </div>
         </div>
-        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-          {photoFile ? 'Photo selected' : 'Upload Student Photo'}
-        </p>
       </div>
 
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-zinc-500 uppercase">Student ID / Roll No</label>
-        <Input name="id" required placeholder="e.g. S101" defaultValue={student?.id} readOnly={!!student} />
-      </div>
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-zinc-500 uppercase">Full Name</label>
-        <Input name="name" required placeholder="e.g. John Doe" defaultValue={student?.name} />
-      </div>
       <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-zinc-500 uppercase">Date of Birth</label>
-          <Input name="dob" type="date" required defaultValue={student?.dob} />
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Registry ID</label>
+          <Input name="id" required placeholder="REF-0000" defaultValue={student?.id} readOnly={!!student} className={cn(student && "bg-slate-50 cursor-not-allowed")} />
         </div>
-        <div className="space-y-1">
-          <label className="text-xs font-bold text-zinc-500 uppercase">Gender</label>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Assigned Grade</label>
+          <Input name="grade" placeholder="e.g. 10-Alpha" defaultValue={student?.grade} />
+        </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Patient Full Name</label>
+        <Input name="name" required placeholder="Enter complete legal name" defaultValue={student?.name} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Date of Birth</label>
+          <Input name="dob" type="date" required defaultValue={student?.dob} className="font-mono" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Biological Gender</label>
           <Select name="gender" required defaultValue={student?.gender || 'male'}>
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -1833,28 +1963,28 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
           </Select>
         </div>
       </div>
-      <div className="space-y-1">
-        <label className="text-xs font-bold text-zinc-500 uppercase">Grade / Class</label>
-        <Input name="grade" placeholder="e.g. Grade 10-A" defaultValue={student?.grade} />
-      </div>
       
-      <div className="space-y-2">
-        <label className="text-xs font-bold text-zinc-500 uppercase">Allergies (Optional)</label>
-        <div className="flex gap-2">
+      <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
+        <div className="flex items-center gap-2 mb-1">
+           <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+           <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Medical Alerts / Allergies</label>
+        </div>
+        <div className="flex gap-3">
           <Select 
             value="" 
             onChange={(e) => addAllergy(e.target.value)}
-            className="flex-1"
+            className="flex-1 bg-white"
           >
-            <option value="" disabled>Select Allergy...</option>
+            <option value="" disabled>Predefined List...</option>
             {commonAllergies.map(a => (
               <option key={a} value={a}>{a}</option>
             ))}
           </Select>
           <div className="flex-1 flex gap-2">
             <Input 
-              placeholder="Other..." 
+              placeholder="Custom alert..." 
               value={newAllergy}
+              className="bg-white"
               onChange={(e) => setNewAllergy(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
@@ -1863,21 +1993,33 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
                 }
               }}
             />
-            <Button type="button" onClick={() => addAllergy(newAllergy)} variant="secondary" className="px-3">Add</Button>
+            <Button type="button" onClick={() => addAllergy(newAllergy)} variant="secondary" className="px-4 text-xs font-bold uppercase">Add</Button>
           </div>
         </div>
-        <div className="flex flex-wrap gap-2 mt-2">
+        <div className="flex flex-wrap gap-2">
           {allergies.map(a => (
-            <span key={a} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 text-zinc-700 text-xs font-medium rounded-md">
+            <span key={a} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-500/10 text-rose-600 text-[10px] font-bold rounded-lg border border-rose-200 uppercase tracking-wide group/tag">
               {a}
-              <button type="button" onClick={() => removeAllergy(a)} className="hover:text-red-500">×</button>
+              <button type="button" onClick={() => removeAllergy(a)} className="hover:text-rose-800 transition-colors">
+                <X className="w-3 h-3" />
+              </button>
             </span>
           ))}
+          {allergies.length === 0 && (
+             <div className="text-[10px] text-slate-400 italic py-1">No contraindications reported</div>
+          )}
         </div>
       </div>
 
-      <Button type="submit" disabled={loading} className="w-full h-12">
-        {loading ? <Loader2 className="animate-spin" /> : student ? 'Update Profile' : 'Create Student Profile'}
+      <Button type="submit" disabled={loading} className="w-full h-12 rounded-2xl bg-teal-600 hover:bg-teal-700 shadow-xl shadow-teal-100 transition-all active:scale-[0.98]">
+        {loading ? <Loader2 className="animate-spin w-5 h-5" /> : (
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="w-5 h-5" />
+            <span className="font-bold uppercase tracking-widest">
+              {student ? 'Update Patient Chart' : 'Authorize Patient Entry'}
+            </span>
+          </div>
+        )}
       </Button>
     </form>
   );
@@ -1983,125 +2125,142 @@ function AddRecordForm({
 
   return (
     <div className="space-y-6">
-      {/* Mode Toggle */}
-      <div className="flex p-1 bg-zinc-100 rounded-xl">
+      {/* Clinical Mode Selection */}
+      <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
         <button
           onClick={() => { setMode('manual'); setIsWaiting(false); }}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all",
-            mode === 'manual' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            "flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all",
+            mode === 'manual' ? "bg-white text-teal-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
           )}
         >
-          <Edit2 className="w-4 h-4" /> Manual
+          <Edit3 className="w-4 h-4" /> Manual Log
         </button>
         <button
           onClick={() => setMode('automatic')}
           className={cn(
-            "flex-1 flex items-center justify-center gap-2 py-2 text-sm font-bold rounded-lg transition-all",
-            mode === 'automatic' ? "bg-white text-zinc-900 shadow-sm" : "text-zinc-500 hover:text-zinc-700"
+            "flex-1 flex items-center justify-center gap-2 py-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all",
+            mode === 'automatic' ? "bg-white text-teal-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
           )}
         >
-          <Cpu className="w-4 h-4" /> Automatic
+          <Activity className="w-4 h-4" /> Device Sync
         </button>
       </div>
 
       {mode === 'automatic' && !isWaiting && !height && (
-        <div className="p-8 border-2 border-dashed border-zinc-200 rounded-2xl text-center space-y-4">
-          <div className="w-16 h-16 bg-zinc-50 rounded-full flex items-center justify-center mx-auto">
-            <Cpu className="w-8 h-8 text-zinc-400" />
+        <div className="p-10 border-2 border-dashed border-slate-200 rounded-[2rem] text-center space-y-6 group bg-slate-50/50">
+          <div className="w-20 h-20 bg-white rounded-3xl flex items-center justify-center mx-auto shadow-sm border border-slate-100 group-hover:scale-110 transition-transform">
+            <Cpu className="w-10 h-10 text-slate-300" />
           </div>
-          <div className="space-y-1">
-            <p className="font-bold">Ready for ESP32 Reading</p>
-            <p className="text-xs text-zinc-500">Click the button below to start the measurement process on your device.</p>
+          <div className="space-y-2">
+            <h4 className="font-bold text-slate-800">Connection Ready</h4>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-[200px] mx-auto font-medium">Activate patient scanning to receive real-time biometric telemetry.</p>
           </div>
-          <Button onClick={() => setIsWaiting(true)} className="w-full">
-            Start Reading
+          <Button onClick={() => setIsWaiting(true)} className="w-full bg-slate-900 text-white rounded-xl h-11">
+            Initialize Scanning Sequence
           </Button>
         </div>
       )}
 
       {isWaiting && (
-        <div className="p-8 border-2 border-zinc-900 rounded-2xl text-center space-y-4 bg-zinc-900 text-white shadow-xl">
-          <div className="relative w-16 h-16 mx-auto">
-            <div className="absolute inset-0 border-4 border-white/20 rounded-full" />
-            <div className="absolute inset-0 border-4 border-white rounded-full border-t-transparent animate-spin" />
+        <div className="p-10 border-none rounded-[2rem] text-center space-y-6 bg-slate-900 text-white shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 p-4">
+             <div className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+          </div>
+          <div className="relative w-20 h-20 mx-auto">
+            <div className="absolute inset-0 border-4 border-white/5 rounded-full" />
+            <div className="absolute inset-0 border-4 border-teal-500 rounded-full border-t-transparent animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
-              <Activity className="w-6 h-6 animate-pulse" />
+              <Activity className="w-8 h-8 text-teal-400 animate-pulse" />
             </div>
           </div>
-          <div className="space-y-1">
-            <p className="font-bold">Waiting for Device...</p>
-            <p className="text-xs text-zinc-400">Please stand on the scale and wait for the height sensor to finish.</p>
+          <div className="space-y-2">
+            <h4 className="font-bold tracking-tight text-lg">Synchronizing...</h4>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">Position patient on the diagnostic scale. Sensor alignment in progress.</p>
           </div>
-          <Button variant="ghost" onClick={() => setIsWaiting(false)} className="text-zinc-400 hover:text-white hover:bg-white/10">
-            Cancel
+          <Button variant="ghost" onClick={() => setIsWaiting(false)} className="text-slate-500 hover:text-white hover:bg-white/5 h-10 px-8">
+            Diagnostic Abort
           </Button>
         </div>
       )}
 
       {(mode === 'manual' || (mode === 'automatic' && height)) && (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-zinc-500 uppercase">Height (cm)</label>
-              <Input 
-                name="height" 
-                type="number" 
-                step="0.1" 
-                required 
-                placeholder="170" 
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-                readOnly={mode === 'automatic'}
-                className={mode === 'automatic' ? "bg-zinc-50" : ""}
-              />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Stature (cm)</label>
+              <div className="relative">
+                 <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Input 
+                   name="height" 
+                   type="number" 
+                   step="0.1" 
+                   required 
+                   placeholder="0.0" 
+                   value={height}
+                   onChange={(e) => setHeight(e.target.value)}
+                   readOnly={mode === 'automatic'}
+                   className={cn("pl-10 font-mono", mode === 'automatic' && "bg-slate-50")}
+                 />
+              </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-zinc-500 uppercase">Weight (kg)</label>
-              <Input 
-                name="weight" 
-                type="number" 
-                step="0.1" 
-                required 
-                placeholder="65" 
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-                readOnly={mode === 'automatic'}
-                className={mode === 'automatic' ? "bg-zinc-50" : ""}
-              />
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Physical Mass (kg)</label>
+              <div className="relative">
+                 <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                 <Input 
+                   name="weight" 
+                   type="number" 
+                   step="0.1" 
+                   required 
+                   placeholder="0.0" 
+                   value={weight}
+                   onChange={(e) => setWeight(e.target.value)}
+                   readOnly={mode === 'automatic'}
+                   className={cn("pl-10 font-mono", mode === 'automatic' && "bg-slate-50")}
+                 />
+              </div>
             </div>
           </div>
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-zinc-500 uppercase">BMI (Calculated)</label>
-            <div className="relative">
+          
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-center block">Calculated Biometric Index (BMI)</label>
+            <div className="relative group">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                 <HeartPulse className="w-5 h-5 text-teal-500" />
+              </div>
               <Input 
                 name="bmi" 
                 type="number" 
                 step="0.01" 
                 required 
-                placeholder="22.5" 
+                readOnly
+                placeholder="--.-" 
                 value={bmi}
-                onChange={(e) => setBmi(e.target.value)}
-                className="pr-10"
+                className="pl-12 py-6 text-2xl font-black bg-teal-50/30 border-teal-100 text-teal-700 tracking-tighter"
               />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400">
-                <Scale className="w-4 h-4" />
-              </div>
+              {bmi && (
+                <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                   <div className={cn("px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm border", getBMICategory(parseFloat(bmi)).color)}>
+                      {getBMICategory(parseFloat(bmi)).label}
+                   </div>
+                </div>
+              )}
             </div>
-            {mode === 'automatic' && (
-              <p className="text-[10px] text-green-600 font-medium italic">Data received from ESP32 device.</p>
-            )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-zinc-500 uppercase">Recent Health Issues (Optional)</label>
+          <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-100">
+            <div className="flex items-center gap-2 mb-1">
+               <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
+               <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Diagnostic Observations</label>
+            </div>
             <div className="flex gap-2">
               <Select 
                 value="" 
                 onChange={(e) => addIssue(e.target.value)}
-                className="flex-1"
+                className="flex-1 bg-white"
               >
-                <option value="" disabled>Select Issue...</option>
+                <option value="" disabled>Clinical Conditions...</option>
                 {commonIssues.map(i => (
                   <option key={i} value={i}>{i}</option>
                 ))}
@@ -2110,6 +2269,7 @@ function AddRecordForm({
                 <Input 
                   placeholder="Other..." 
                   value={newIssue}
+                  className="bg-white"
                   onChange={(e) => setNewIssue(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
@@ -2118,27 +2278,37 @@ function AddRecordForm({
                     }
                   }}
                 />
-                <Button type="button" onClick={() => addIssue(newIssue)} variant="secondary" className="px-3">Add</Button>
+                <Button type="button" onClick={() => addIssue(newIssue)} variant="secondary" className="px-4 text-xs font-bold uppercase">Add</Button>
               </div>
             </div>
-            <div className="flex flex-wrap gap-2 mt-2">
+            <div className="flex flex-wrap gap-2">
               {healthIssues.map(i => (
-                <span key={i} className="inline-flex items-center gap-1 px-2 py-1 bg-zinc-100 text-zinc-700 text-xs font-medium rounded-md">
+                <span key={i} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-200 text-slate-700 text-[10px] font-bold rounded-lg border border-slate-300 uppercase tracking-wide">
                   {i}
-                  <button type="button" onClick={() => removeIssue(i)} className="hover:text-red-500">×</button>
+                  <button type="button" onClick={() => removeIssue(i)} className="hover:text-rose-500 transition-colors">
+                    <X className="w-3 h-3" />
+                  </button>
                 </span>
               ))}
+              {healthIssues.length === 0 && (
+                 <div className="text-[10px] text-slate-400 italic py-1">No acute findings recorded</div>
+              )}
             </div>
           </div>
 
           <div className="flex gap-3">
-            {mode === 'automatic' && (
-              <Button type="button" variant="secondary" onClick={() => { setHeight(''); setWeight(''); setIsWaiting(true); }} className="flex-1">
-                Re-read
-              </Button>
-            )}
-            <Button type="submit" disabled={loading} className="flex-[2] h-12">
-              {loading ? <Loader2 className="animate-spin" /> : 'Save Measurement'}
+             {mode === 'automatic' && (
+                <Button type="button" variant="secondary" onClick={() => { setHeight(''); setWeight(''); setIsWaiting(true); }} className="flex-1 h-12 rounded-2xl border-slate-200 text-slate-600 uppercase font-bold text-xs">
+                   Re-scan
+                </Button>
+             )}
+            <Button type="submit" disabled={loading || !height || !weight} className="flex-[2] h-12 rounded-2xl bg-teal-600 hover:bg-teal-700 shadow-xl shadow-teal-100 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group">
+              {loading ? <Loader2 className="animate-spin w-5 h-5" /> : (
+                <>
+                  <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span className="font-bold uppercase tracking-widest">Commit Diagnostic</span>
+                </>
+              )}
             </Button>
           </div>
         </form>
