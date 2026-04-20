@@ -15,6 +15,7 @@
           "items": { "type": "string" },
           "description": "List of student allergies"
         },
+        "photoUrl": { "type": "string", "description": "URL of the student's photo" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "name", "dob", "gender"]

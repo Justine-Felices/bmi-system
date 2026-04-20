@@ -73,7 +73,10 @@ import {
   FileText,
   Download,
   Sparkles,
-  Printer
+  Printer,
+  Camera,
+  Image as ImageIcon,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
@@ -83,6 +86,7 @@ import { GoogleGenAI } from "@google/genai";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { uploadStudentPhoto, deleteStudentPhoto } from './lib/supabase';
 
 // --- Utilities ---
 function cn(...inputs: ClassValue[]) {
@@ -97,6 +101,7 @@ interface Student {
   dob: string; // YYYY-MM-DD
   gender: 'male' | 'female' | 'other';
   allergies?: string[];
+  photoUrl?: string;
   createdAt: Timestamp;
 }
 
@@ -1052,10 +1057,12 @@ export default function App() {
     
     try {
       if (type === 'student') {
-        // In a real app, you'd also delete sub-collections, but Firestore rules/SDK don't do it automatically.
-        // For this demo, we'll just delete the student doc.
+        const studentToDelete = students.find(s => s.id === id);
+        if (studentToDelete?.photoUrl) {
+          await deleteStudentPhoto(studentToDelete.photoUrl);
+        }
         await deleteDoc(doc(db, 'students', id));
-        setSelectedStudent(null);
+        if (selectedStudent?.id === id) setSelectedStudent(null);
       } else if (type === 'record' && selectedStudent) {
         await deleteDoc(doc(db, `students/${selectedStudent.id}/records`, id));
         // Using deleteDoc would be better if imported
@@ -1330,10 +1337,14 @@ export default function App() {
               >
                 <div className="flex items-center gap-3">
                   <div className={cn(
-                    "w-10 h-10 rounded-full flex items-center justify-center",
+                    "w-10 h-10 rounded-full flex items-center justify-center overflow-hidden",
                     selectedStudent?.id === student.id ? "bg-zinc-800" : "bg-zinc-100"
                   )}>
-                    <UserIcon className="w-5 h-5" />
+                    {student.photoUrl ? (
+                      <img src={student.photoUrl} alt={student.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <UserIcon className="w-5 h-5" />
+                    )}
                   </div>
                   <div>
                     <div className="font-medium">{student.name}</div>
@@ -1374,13 +1385,23 @@ export default function App() {
                 {/* Student Profile Header */}
                 <Card className="p-6 bg-zinc-900 text-white border-none shadow-xl relative overflow-hidden">
                   <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-6">
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <div className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Student Profile</div>
-                        <h1 className="text-3xl font-bold">{selectedStudent.name}</h1>
+                    <div className="flex flex-col md:flex-row gap-6">
+                      {/* Large Photo */}
+                      <div className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center overflow-hidden shrink-0">
+                        {selectedStudent.photoUrl ? (
+                          <img src={selectedStudent.photoUrl} alt={selectedStudent.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                        ) : (
+                          <UserIcon className="w-10 h-10 text-white/40" />
+                        )}
                       </div>
-                      
-                      <div className="flex flex-wrap items-center gap-4 text-zinc-300 text-sm">
+
+                      <div className="space-y-4">
+                        <div className="space-y-1">
+                          <div className="text-zinc-400 text-sm font-medium uppercase tracking-wider">Student Profile</div>
+                          <h1 className="text-3xl font-bold">{selectedStudent.name}</h1>
+                        </div>
+                        
+                        <div className="flex flex-wrap items-center gap-4 text-zinc-300 text-sm">
                         <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1 rounded-full">
                           <UserIcon className="w-4 h-4" /> ID: {selectedStudent.id}
                         </span>
@@ -1406,6 +1427,7 @@ export default function App() {
                         </div>
                       )}
                     </div>
+                  </div>
                     
                     <div className="flex flex-col gap-2">
                       <div className="flex gap-2">
@@ -1704,8 +1726,22 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
   const [loading, setLoading] = useState(false);
   const [allergies, setAllergies] = useState<string[]>(student?.allergies || []);
   const [newAllergy, setNewAllergy] = useState('');
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(student?.photoUrl || null);
 
   const commonAllergies = ['Peanuts', 'Dairy', 'Eggs', 'Shellfish', 'Wheat', 'Soy', 'Dust', 'Pollen', 'Latex'];
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPhotoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPhotoPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const addAllergy = (allergy: string) => {
     if (allergy && !allergies.includes(allergy)) {
@@ -1729,6 +1765,11 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
     const gender = formData.get('gender') as 'male' | 'female' | 'other';
 
     try {
+      let photoUrl = student?.photoUrl || '';
+      if (photoFile) {
+        photoUrl = await uploadStudentPhoto(photoFile, id);
+      }
+
       await setDoc(doc(db, 'students', id), {
         id,
         name,
@@ -1736,11 +1777,13 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
         dob,
         gender,
         allergies,
+        photoUrl,
         createdAt: student ? student.createdAt : serverTimestamp()
       }, { merge: true });
       onSuccess();
     } catch (error) {
       console.error('Failed to save student', error);
+      alert(error instanceof Error ? error.message : 'Failed to save student and upload photo');
     } finally {
       setLoading(false);
     }
@@ -1748,6 +1791,26 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
+      {/* Photo Upload Section */}
+      <div className="flex flex-col items-center gap-4 py-4">
+        <div className="relative group">
+          <div className="w-24 h-24 rounded-full bg-zinc-100 border-2 border-dashed border-zinc-300 flex items-center justify-center overflow-hidden">
+            {photoPreview ? (
+              <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            ) : (
+              <Camera className="w-8 h-8 text-zinc-400" />
+            )}
+          </div>
+          <label className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 rounded-full cursor-pointer transition-opacity">
+            <Upload className="w-6 h-6 text-white" />
+            <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+          </label>
+        </div>
+        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+          {photoFile ? 'Photo selected' : 'Upload Student Photo'}
+        </p>
+      </div>
+
       <div className="space-y-1">
         <label className="text-xs font-bold text-zinc-500 uppercase">Student ID / Roll No</label>
         <Input name="id" required placeholder="e.g. S101" defaultValue={student?.id} readOnly={!!student} />
