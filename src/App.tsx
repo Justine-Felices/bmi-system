@@ -50,6 +50,7 @@ import {
   User as UserIcon, 
   Activity, 
   TrendingUp, 
+  TrendingDown, 
   Search, 
   ChevronRight, 
   History,
@@ -77,11 +78,6 @@ import {
   Camera,
   Image as ImageIcon,
   Upload,
-  Stethoscope,
-  HeartPulse,
-  Microscope,
-  Dna,
-  ThermometerIcon,
   Crosshair,
   ShieldCheck,
   ClipboardList,
@@ -397,10 +393,10 @@ function AnalyticsDashboard({
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-            <span className="text-teal-600 text-[10px] font-bold uppercase tracking-widest">Live Clinical Data</span>
+            <span className="text-teal-600 text-[10px] font-bold uppercase tracking-widest">Real-time Health Data</span>
           </div>
           <h2 className="text-3xl font-bold tracking-tight text-slate-900 font-sans">Population Analytics</h2>
-          <p className="text-slate-500 text-sm">Diagnostic overview and cross-sectional health metrics.</p>
+          <p className="text-slate-500 text-sm">BMI overview and health metrics.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 bg-slate-100 p-1 rounded-2xl border border-slate-200">
           {/* Filters grouped for cleaner look */}
@@ -435,7 +431,7 @@ function AnalyticsDashboard({
             ) : (
               <Sparkles className="w-4 h-4 mr-2 text-white/50" />
             )}
-            {isGeneratingReport ? 'Synthesizing...' : 'Diagnostic PDF'}
+            {isGeneratingReport ? 'Synthesizing...' : 'Health Report'}
           </Button>
         </div>
       </div>
@@ -471,7 +467,7 @@ function AnalyticsDashboard({
                   <Users className="w-6 h-6" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Patient Total</p>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Student Total</p>
                   <p className="text-3xl font-bold text-slate-900 font-mono">{data.totalStudents}</p>
                 </div>
               </div>
@@ -501,7 +497,7 @@ function AnalyticsDashboard({
             <Card className="p-6 border-l-4 border-l-teal-600">
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-700 shadow-sm">
-                  <Stethoscope className="w-6 h-6" />
+                  <Activity className="w-6 h-6" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Median BMI</p>
@@ -1024,7 +1020,7 @@ export default function App() {
           try {
             await deleteStudentPhoto(studentToDelete.photoUrl);
           } catch (e) {
-            console.error("Clinical Photo Removal Error:", e);
+            console.error("Photo Removal Error:", e);
           }
         }
         await deleteDoc(doc(db, 'students', id));
@@ -1034,8 +1030,8 @@ export default function App() {
       }
       setShowDeleteConfirm(null);
     } catch (error) {
-      console.error('Clinical Removal Failure', error);
-      alert('Security Protocol: Failed to decommission record');
+      console.error('Removal Failure', error);
+      alert('Security Protocol: Failed to remove record');
     }
   };
 
@@ -1206,11 +1202,11 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-teal-100">
-              <HeartPulse className="w-6 h-6 text-white" />
+              <Activity className="w-6 h-6 text-white" />
             </div>
             <div className="flex flex-col mr-8 whitespace-nowrap">
-              <span className="font-bold text-lg leading-tight">BMI MedSync</span>
-              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-tighter">Clinical Monitoring</span>
+              <span className="font-bold text-lg leading-tight text-slate-800">BMI Monitor</span>
+              <span className="text-[10px] font-bold text-teal-600 uppercase tracking-tighter">BMI Tracking System</span>
             </div>
             
             <nav className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
@@ -1236,7 +1232,7 @@ export default function App() {
                 )}
               >
                 <ClipboardList className="w-4 h-4" />
-                <span className="hidden xs:inline">Patient Registry</span>
+                <span className="hidden xs:inline">Student List</span>
               </button>
             </nav>
           </div>
@@ -1244,7 +1240,7 @@ export default function App() {
             <div className="hidden md:flex flex-col items-end">
               <span className="text-sm font-bold text-slate-700">{user.displayName || user.email}</span>
               <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Admin Staff
+                <ShieldCheck className="w-3 h-3" /> Authorized Staff
               </span>
             </div>
             <Button variant="ghost" onClick={handleLogout} className="p-2 h-10 w-10 text-slate-400 hover:text-rose-500">
@@ -1273,7 +1269,7 @@ export default function App() {
         <div className="lg:col-span-4 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
-              <h2 className="text-lg font-bold text-slate-800">Patient Directory</h2>
+              <h2 className="text-lg font-bold text-slate-800">Student Directory</h2>
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total: {filteredStudents.length} Records</span>
             </div>
             <Button variant="primary" onClick={() => setShowAddStudent(true)} className="p-2 h-10 w-10 rounded-xl">
@@ -1324,7 +1320,7 @@ export default function App() {
                         ID: {student.id}
                       </span>
                       <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest opacity-60">
-                        {student.grade || 'Outpatient'}
+                        {student.grade || 'N/A'}
                       </span>
                     </div>
                   </div>
@@ -1365,16 +1361,16 @@ export default function App() {
               >
                 {/* Student Profile Header */}
                 <Card className="p-8 bg-slate-900 border-none shadow-2xl relative overflow-hidden ring-1 ring-white/10">
-                  {/* Decorative Medical Pulse */}
+                  {/* Decorative Pulse Wave */}
                   <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 pointer-events-none text-teal-400">
-                    <svg viewBox="0 0 100 100" className="w-full h-full" fill="none" stroke="currentColor" strokeWidth="1">
-                      <path d="M0 50 L20 50 L25 40 L35 60 L40 50 L60 50 L65 30 L75 70 L80 50 L100 50" />
+                    <svg viewBox="0 0 100 100" className="w-full h-full opacity-20" fill="none" stroke="currentColor" strokeWidth="0.5">
+                      <path d="M0 50 Q25 40 50 50 T100 50" />
                     </svg>
                   </div>
 
                   <div className="relative z-10 flex flex-col md:flex-row md:items-start justify-between gap-8">
                     <div className="flex flex-col md:flex-row gap-8">
-                      {/* Large Photo as Clinical ID */}
+                      {/* Student Photo */}
                       <div className="relative">
                         <div className="w-32 h-32 rounded-3xl bg-white/5 border-2 border-white/10 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
                           {selectedStudent.photoUrl ? (
@@ -1392,7 +1388,7 @@ export default function App() {
                         <div className="space-y-1">
                           <div className="flex items-center gap-2">
                              <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
-                             <span className="text-teal-400 text-[10px] font-bold uppercase tracking-[0.2em]">Patient Record Active</span>
+                             <span className="text-teal-400 text-[10px] font-bold uppercase tracking-[0.2em]">Record Active</span>
                           </div>
                           <h1 className="text-4xl font-bold text-white tracking-tight">{selectedStudent.name}</h1>
                         </div>
@@ -1416,7 +1412,7 @@ export default function App() {
                           <div className="flex flex-wrap items-center gap-2 pt-2">
                             <div className="flex items-center gap-1.5 text-rose-400 mr-2">
                                <AlertCircle className="w-4 h-4" />
-                               <span className="text-[10px] font-bold uppercase tracking-widest">Medical Alerts:</span>
+                               <span className="text-[10px] font-bold uppercase tracking-widest">Health Alerts:</span>
                             </div>
                             {selectedStudent.allergies.map(a => (
                               <span key={a} className="px-3 py-1 bg-rose-500/10 text-rose-300 text-[10px] font-bold rounded-lg border border-rose-500/20 uppercase tracking-wide">
@@ -1430,12 +1426,12 @@ export default function App() {
                     
                     <div className="flex flex-col gap-4 min-w-[200px]">
                       <div className="space-y-3 p-4 bg-white/5 rounded-2xl border border-white/5 backdrop-blur-sm">
-                        <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest text-center">Diagnostic Actions</div>
+                        <div className="text-[10px] font-bold text-teal-400 uppercase tracking-widest text-center">Record Actions</div>
                         <Button 
                           onClick={async () => {
                              const doc = new jsPDF();
                              doc.setFontSize(20);
-                             doc.text(`Patient Health Report: ${selectedStudent.name}`, 15, 20);
+                             doc.text(`Health Report: ${selectedStudent.name}`, 15, 20);
                              
                              doc.setFontSize(12);
                              doc.text(`ID Reference: ${selectedStudent.id}`, 15, 30);
@@ -1444,7 +1440,7 @@ export default function App() {
                              doc.text(`Recorded Allergies: ${selectedStudent.allergies?.join(', ') || 'None'}`, 15, 51);
                              
                              doc.setFontSize(16);
-                             doc.text("AI Diagnostic Summary", 15, 65);
+                             doc.text("AI Health Summary", 15, 65);
                              
                              const aiAnalysis = await generateAIReport({
                                student: selectedStudent,
@@ -1464,11 +1460,11 @@ export default function App() {
                                  const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
                                  const imgData = canvas.toDataURL('image/png');
                                  doc.setFontSize(14);
-                                 doc.text("BMI Trend Visualization", 15, currentY);
+                                 doc.text("BMI Trend", 15, currentY);
                                  doc.addImage(imgData, 'PNG', 15, currentY + 5, 180, 60);
                                  currentY += 75;
                                } catch (e) {
-                                 console.error("Failed to capture patient chart", e);
+                                 console.error("Failed to capture record screenshot", e);
                                }
                              }
 
@@ -1484,23 +1480,23 @@ export default function App() {
                                ])
                              });
 
-                             doc.save(`${selectedStudent.name}_Diagnostic_Report.pdf`);
+                             doc.save(`${selectedStudent.name}_Health_Report.pdf`);
                           }}
                           variant="outline" 
                           className="w-full border-white/10 text-white hover:bg-white/10 h-10 rounded-xl text-xs"
                         >
-                          <FileText className="w-3.5 h-3.5 mr-2" /> Clinical Report
+                          <FileText className="w-3.5 h-3.5 mr-2" /> BMI Report
                         </Button>
                         <Button 
                           onClick={() => setShowAddRecord(true)} 
                           className="w-full bg-teal-500 text-white hover:bg-teal-400 h-10 rounded-xl shadow-lg shadow-teal-500/20 text-xs"
                         >
-                          <Plus className="w-4 h-4 mr-2" /> New Evaluation
+                          <Plus className="w-4 h-4 mr-2" /> New BMI Record
                         </Button>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="ghost" onClick={() => setShowEditStudent(true)} className="flex-1 text-slate-400 hover:text-white h-9 text-xs">
-                          <Edit2 className="w-3.5 h-3.5 mr-2" /> Registry Edit
+                          <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit Profile
                         </Button>
                         <Button variant="ghost" onClick={() => setShowDeleteConfirm({ type: 'student', id: selectedStudent.id })} className="h-9 w-9 p-0 text-slate-500 hover:text-rose-400">
                           <Trash2 className="w-4 h-4" />
@@ -1508,7 +1504,7 @@ export default function App() {
                       </div>
                     </div>
                   </div>
-                  <Dna className="absolute -right-8 -bottom-8 w-48 h-48 text-teal-400/5 rotate-12" />
+                  <Activity className="absolute -right-8 -bottom-8 w-48 h-48 text-teal-400/5 rotate-12" />
                 </Card>
 
                 {/* BMI Trend Chart */}
@@ -1520,7 +1516,7 @@ export default function App() {
                           <TrendingUp className="w-5 h-5" />
                         </div>
                         <div>
-                          <h3 className="font-bold text-slate-800">Biometric Trend</h3>
+                          <h3 className="font-bold text-slate-800">BMI Trend</h3>
                           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">Weight & Height Correlation</p>
                         </div>
                       </div>
@@ -1566,7 +1562,7 @@ export default function App() {
                       <Ruler className="w-7 h-7" />
                     </div>
                     <div>
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stature (Height)</div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Height</div>
                       <div className="text-2xl font-bold text-slate-800 font-mono tracking-tighter">
                         {records[0]?.height || '--'} 
                         <span className="text-sm font-bold text-slate-300 ml-1">cm</span>
@@ -1587,7 +1583,7 @@ export default function App() {
                   </Card>
                   <Card className="p-5 flex items-center gap-4 bg-white border-slate-100 shadow-sm transition-all hover:shadow-md active:scale-[0.98]">
                     <div className="w-14 h-14 bg-teal-50 rounded-2xl flex items-center justify-center text-teal-600 shrink-0">
-                      <HeartPulse className="w-7 h-7" />
+                      <Activity className="w-7 h-7" />
                     </div>
                     <div className="flex-1">
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Evaluation (BMI)</div>
@@ -1621,8 +1617,8 @@ export default function App() {
                     <table className="w-full text-sm text-left">
                       <thead>
                         <tr className="bg-slate-50/80 text-slate-500 font-bold border-b border-slate-100 uppercase text-[10px] tracking-widest">
-                          <th className="px-6 py-4">Diagnostic Date</th>
-                          <th className="px-6 py-4 text-center">Stature</th>
+                          <th className="px-6 py-4">Record Date</th>
+                          <th className="px-6 py-4 text-center">Height</th>
                           <th className="px-6 py-4 text-center">Mass</th>
                           <th className="px-6 py-4 text-center">Metric (BMI)</th>
                           <th className="px-6 py-4">Alerts/Issues</th>
@@ -1683,10 +1679,10 @@ export default function App() {
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-dashed border-slate-200">
                            <FileText className="w-8 h-8 text-slate-300" />
                         </div>
-                        <h4 className="text-slate-800 font-bold">No Clinical Data</h4>
-                        <p className="text-slate-400 text-sm mt-1">This patient does not have any recorded biometrics.</p>
+                        <h4 className="text-slate-800 font-bold">No Records Found</h4>
+                        <p className="text-slate-400 text-sm mt-1">This student does not have any recorded BMI data.</p>
                         <Button onClick={() => setShowAddRecord(true)} variant="outline" className="mt-6 border-teal-200 text-teal-600 hover:bg-teal-50">
-                           Initialize First Evaluation
+                           Add First Record
                         </Button>
                       </div>
                     )}
@@ -1705,12 +1701,12 @@ export default function App() {
                     <Crosshair className="w-5 h-5" />
                   </div>
                </div>
-               <h2 className="text-2xl font-black text-slate-800 tracking-tight">No Patient Selected</h2>
+               <h2 className="text-2xl font-black text-slate-800 tracking-tight">No Student Selected</h2>
                <p className="text-slate-400 text-sm max-w-sm mt-3 leading-relaxed font-medium">
-                 Select a diagnosis record from the clinical registry on the left to review patient biometrics, trends, and history.
+                 Select a student from the list to review BMI records, trends, and history.
                </p>
                <Button onClick={() => setShowAddStudent(true)} variant="outline" className="mt-8 border-slate-200 text-slate-500 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50/50 rounded-xl px-8">
-                  <Plus className="w-4 h-4 mr-2" /> Register New Patient
+                  <Plus className="w-4 h-4 mr-2" /> Add New Student
                </Button>
             </div>
           )}
@@ -1751,13 +1747,13 @@ export default function App() {
                     <AlertCircle className="w-6 h-6" />
                  </div>
                  <div>
-                    <h4 className="font-bold">Permanent Decommission</h4>
+                    <h4 className="font-bold">Permanent Delete</h4>
                     <p className="text-[10px] uppercase font-bold tracking-widest opacity-70">Security Protocol Alpha-6</p>
                  </div>
               </div>
               
               <p className="text-slate-600 text-sm leading-relaxed px-2 text-center font-medium">
-                You are about to authorize the permanent removal of clinical data from the encrypted registry. 
+                You are about to permanently remove this record from the system. 
                 This action is <span className="text-rose-600 font-bold underline decoration-rose-200">irreversible</span>.
               </p>
 
@@ -1767,7 +1763,7 @@ export default function App() {
                   onClick={() => setShowDeleteConfirm(null)} 
                   className="flex-1 h-12 rounded-2xl border-slate-200 font-bold uppercase tracking-widest text-xs"
                 >
-                  Abort Action
+                  Go Back
                 </Button>
                 <Button 
                   onClick={handleDelete}
@@ -1787,10 +1783,10 @@ export default function App() {
 // --- Sub-components ---
 
 const getBMICategory = (bmi: number) => {
-  if (bmi < 18.5) return { label: 'Underweight', color: 'text-blue-600 bg-blue-50 border-blue-100', icon: ThermometerIcon };
+  if (bmi < 18.5) return { label: 'Underweight', color: 'text-blue-600 bg-blue-50 border-blue-100', icon: TrendingDown };
   if (bmi < 25) return { label: 'Healthy', color: 'text-teal-600 bg-teal-50 border-teal-100', icon: ShieldCheck };
   if (bmi < 30) return { label: 'Overweight', color: 'text-amber-600 bg-amber-50 border-amber-100', icon: AlertCircle };
-  return { label: 'Obese', color: 'text-rose-600 bg-rose-50 border-rose-100', icon: HeartPulse };
+  return { label: 'Obese', color: 'text-rose-600 bg-rose-50 border-rose-100', icon: TrendingUp };
 };
 
 const calculateBMI = (h: number, w: number) => {
@@ -1910,7 +1906,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Clinical Photo Identification */}
+      {/* Student Photo ID */}
       <div className="flex flex-col items-center gap-4 py-2">
         <div className="relative group">
           <div className="w-28 h-28 rounded-3xl bg-slate-50 border-2 border-dashed border-slate-200 flex items-center justify-center overflow-hidden shadow-inner group-hover:border-teal-300 transition-colors">
@@ -1919,7 +1915,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
             ) : (
               <div className="text-center group-hover:scale-110 transition-transform">
                 <Camera className="w-8 h-8 text-slate-300 mx-auto" />
-                <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">Patient Photo</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase mt-1 block">Student Photo</span>
               </div>
             )}
           </div>
@@ -1935,7 +1931,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
 
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Registry ID</label>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Student ID</label>
           <Input name="id" required placeholder="REF-0000" defaultValue={student?.id} readOnly={!!student} className={cn(student && "bg-slate-50 cursor-not-allowed")} />
         </div>
         <div className="space-y-1.5">
@@ -1945,7 +1941,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Patient Full Name</label>
+        <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Student Name</label>
         <Input name="name" required placeholder="Enter complete legal name" defaultValue={student?.name} />
       </div>
 
@@ -1955,7 +1951,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
           <Input name="dob" type="date" required defaultValue={student?.dob} className="font-mono" />
         </div>
         <div className="space-y-1.5">
-          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Biological Gender</label>
+          <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Gender</label>
           <Select name="gender" required defaultValue={student?.gender || 'male'}>
             <option value="male">Male</option>
             <option value="female">Female</option>
@@ -1967,7 +1963,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
       <div className="space-y-3 bg-slate-50 p-4 rounded-2xl border border-slate-100">
         <div className="flex items-center gap-2 mb-1">
            <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-           <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Medical Alerts / Allergies</label>
+           <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Health Alerts / Notes</label>
         </div>
         <div className="flex gap-3">
           <Select 
@@ -2006,7 +2002,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
             </span>
           ))}
           {allergies.length === 0 && (
-             <div className="text-[10px] text-slate-400 italic py-1">No contraindications reported</div>
+             <div className="text-[10px] text-slate-400 italic py-1">No health alerts reported</div>
           )}
         </div>
       </div>
@@ -2016,7 +2012,7 @@ function StudentForm({ student, onSuccess }: { student?: Student; onSuccess: () 
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5" />
             <span className="font-bold uppercase tracking-widest">
-              {student ? 'Update Patient Chart' : 'Authorize Patient Entry'}
+              {student ? 'Update Profile' : 'Add Student'}
             </span>
           </div>
         )}
@@ -2125,7 +2121,7 @@ function AddRecordForm({
 
   return (
     <div className="space-y-6">
-      {/* Clinical Mode Selection */}
+      {/* Scanning Mode Selection */}
       <div className="flex bg-slate-100 p-1 rounded-2xl border border-slate-200">
         <button
           onClick={() => { setMode('manual'); setIsWaiting(false); }}
@@ -2154,10 +2150,10 @@ function AddRecordForm({
           </div>
           <div className="space-y-2">
             <h4 className="font-bold text-slate-800">Connection Ready</h4>
-            <p className="text-xs text-slate-500 leading-relaxed max-w-[200px] mx-auto font-medium">Activate patient scanning to receive real-time biometric telemetry.</p>
+            <p className="text-xs text-slate-500 leading-relaxed max-w-[200px] mx-auto font-medium">Start scanning to receive real-time height and weight data.</p>
           </div>
           <Button onClick={() => setIsWaiting(true)} className="w-full bg-slate-900 text-white rounded-xl h-11">
-            Initialize Scanning Sequence
+            Start Scanning
           </Button>
         </div>
       )}
@@ -2176,10 +2172,10 @@ function AddRecordForm({
           </div>
           <div className="space-y-2">
             <h4 className="font-bold tracking-tight text-lg">Synchronizing...</h4>
-            <p className="text-xs text-slate-400 leading-relaxed font-medium">Position patient on the diagnostic scale. Sensor alignment in progress.</p>
+            <p className="text-xs text-slate-400 leading-relaxed font-medium">Position student on the scale. Sensor alignment in progress.</p>
           </div>
           <Button variant="ghost" onClick={() => setIsWaiting(false)} className="text-slate-500 hover:text-white hover:bg-white/5 h-10 px-8">
-            Diagnostic Abort
+            Cancel Scan
           </Button>
         </div>
       )}
@@ -2188,7 +2184,7 @@ function AddRecordForm({
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Stature (cm)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Height (cm)</label>
               <div className="relative">
                  <Ruler className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                  <Input 
@@ -2205,7 +2201,7 @@ function AddRecordForm({
               </div>
             </div>
             <div className="space-y-1.5">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Physical Mass (kg)</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Weight (kg)</label>
               <div className="relative">
                  <Scale className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                  <Input 
@@ -2224,10 +2220,10 @@ function AddRecordForm({
           </div>
           
           <div className="space-y-1.5">
-            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-center block">Calculated Biometric Index (BMI)</label>
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1 text-center block">Body Mass Index (BMI)</label>
             <div className="relative group">
               <div className="absolute left-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                 <HeartPulse className="w-5 h-5 text-teal-500" />
+                 <Activity className="w-5 h-5 text-teal-500" />
               </div>
               <Input 
                 name="bmi" 
@@ -2252,7 +2248,7 @@ function AddRecordForm({
           <div className="space-y-3 bg-slate-50 p-5 rounded-2xl border border-slate-100">
             <div className="flex items-center gap-2 mb-1">
                <AlertCircle className="w-3.5 h-3.5 text-rose-500" />
-               <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Diagnostic Observations</label>
+               <label className="text-[10px] font-bold text-slate-800 uppercase tracking-widest">Health Issues</label>
             </div>
             <div className="flex gap-2">
               <Select 
@@ -2260,7 +2256,7 @@ function AddRecordForm({
                 onChange={(e) => addIssue(e.target.value)}
                 className="flex-1 bg-white"
               >
-                <option value="" disabled>Clinical Conditions...</option>
+                <option value="" disabled>Common Issues...</option>
                 {commonIssues.map(i => (
                   <option key={i} value={i}>{i}</option>
                 ))}
@@ -2291,7 +2287,7 @@ function AddRecordForm({
                 </span>
               ))}
               {healthIssues.length === 0 && (
-                 <div className="text-[10px] text-slate-400 italic py-1">No acute findings recorded</div>
+                 <div className="text-[10px] text-slate-400 italic py-1">No health issues recorded</div>
               )}
             </div>
           </div>
@@ -2306,7 +2302,7 @@ function AddRecordForm({
               {loading ? <Loader2 className="animate-spin w-5 h-5" /> : (
                 <>
                   <ShieldCheck className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span className="font-bold uppercase tracking-widest">Commit Diagnostic</span>
+                  <span className="font-bold uppercase tracking-widest">Save Record</span>
                 </>
               )}
             </Button>
