@@ -1123,7 +1123,7 @@ export default function App() {
               />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold tracking-tight">BMI Tracker</h1>
+              <h1 className="text-2xl font-bold tracking-tight">BMI Monitor</h1>
               <p className="text-zinc-500">Admin portal for student health monitoring.</p>
             </div>
           </div>
@@ -1201,8 +1201,13 @@ export default function App() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-10 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-teal-600 rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-teal-100">
-              <Activity className="w-6 h-6 text-white" />
+            <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center overflow-hidden shadow-lg shadow-slate-100 border border-slate-100">
+              <img 
+                src="https://gjfwrphhhgodjhtgwmum.supabase.co/storage/v1/object/public/Logos/bmi-logo.jpg" 
+                alt="BMI Monitor Logo" 
+                className="w-full h-full object-cover"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div className="flex flex-col mr-8 whitespace-nowrap">
               <span className="font-bold text-lg leading-tight text-slate-800">BMI Monitor</span>
