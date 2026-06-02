@@ -1,13 +1,15 @@
-import { initializeApp } from 'firebase/app';
+import { initializeApp, type FirebaseApp } from 'firebase/app';
 import { 
-  getAuth, 
+  getAuth,
+  type Auth,
   signInWithEmailAndPassword, 
   signOut, 
   onAuthStateChanged, 
   User 
 } from 'firebase/auth';
 import { 
-  getFirestore, 
+  getFirestore,
+  type Firestore,
   collection, 
   doc, 
   setDoc, 
@@ -59,18 +61,27 @@ if (typeof window !== 'undefined') {
   });
 }
 
-const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = firestoreDatabaseId === '(default)' 
-  ? getFirestore(app) 
-  : getFirestore(app, firestoreDatabaseId);
+let app: FirebaseApp | undefined;
+let authInstance: Auth | undefined;
+let dbInstance: Firestore | undefined;
+
+if (isFirebaseConfigured) {
+  app = initializeApp(firebaseConfig);
+  authInstance = getAuth(app);
+  dbInstance = firestoreDatabaseId === '(default)'
+    ? getFirestore(app)
+    : getFirestore(app, firestoreDatabaseId);
+}
+
+export const auth = authInstance ?? null;
+export const db = dbInstance ?? null;
 
 /**
  * Tests the connection to Firestore.
  * If it fails with "the client is offline", the configuration is likely incorrect.
  */
 export async function testFirestoreConnection() {
-  if (!isFirebaseConfigured) return { success: false, error: 'Missing environment variables' };
+  if (!isFirebaseConfigured || !db) return { success: false, error: 'Missing environment variables' };
   try {
     // Try to fetch a non-existent doc from a test collection to verify connectivity
     await getDocFromServer(doc(db, '_connection_test_', 'ping'));

@@ -42,12 +42,18 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isDevice() {
+      return isAuthenticated() &&
+        request.auth.token.email == "esp32.device@bmi-sys.local";
+    }
+
     function isAdmin() {
       return isAuthenticated() &&
         (exists(/databases/$(database)/documents/admins/$(request.auth.uid)) && 
          get(/databases/$(database)/documents/admins/$(request.auth.uid)).data.role == 'admin' ||
          request.auth.token.email == "newroskoto@gmail.com" ||
-         request.auth.token.email == "admin@gmail.com");
+         request.auth.token.email == "admin@gmail.com" ||
+         request.auth.token.email == "felicesjustine0406@gmail.com");
     }
 
     function isValidStudent(data) {
@@ -57,8 +63,29 @@ service cloud.firestore {
              data.dob is string && data.dob.matches("^\\d{4}-\\d{2}-\\d{2}$") &&
              data.gender in ['male', 'female', 'other'] &&
              (!('grade' in data) || (data.grade is string && data.grade.size() < 20)) &&
+             (!('sectionId' in data) || (data.sectionId is string && data.sectionId.size() < 50)) &&
              (!('allergies' in data) || (data.allergies is list && data.allergies.size() <= 20)) &&
              (!('photoUrl' in data) || (data.photoUrl is string && data.photoUrl.size() < 1000));
+    }
+
+    function isValidSection(data) {
+      return data.keys().hasAll(['id', 'name', 'sortOrder']) &&
+             data.id is string && data.id.size() > 0 && data.id.size() < 50 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.sortOrder is number &&
+             (!('description' in data) || (data.description is string && data.description.size() < 200));
+    }
+
+    function isValidMealPlan(data) {
+      return data.keys().hasAll(['studentId', 'periodType', 'startDate', 'endDate', 'baselineBmi', 'baselineCategory', 'meals', 'status']) &&
+             data.studentId is string &&
+             data.periodType in ['weekly', 'monthly'] &&
+             data.startDate is string &&
+             data.endDate is string &&
+             data.baselineBmi is number && data.baselineBmi > 0 && data.baselineBmi < 100 &&
+             data.baselineCategory is string &&
+             data.meals is list && data.meals.size() > 0 && data.meals.size() <= 35 &&
+             data.status in ['draft', 'active', 'completed'];
     }
 
     function isValidBMIRecord(data) {
@@ -81,12 +108,11 @@ service cloud.firestore {
     // Rules
     // ===============================================================
 
-    // Device communication
+    // Device communication (web app + ESP32)
     match /devices/{deviceId} {
       allow read, write: if isAdmin();
-      // Allow ESP32 to update if we had a way to identify it, 
-      // but for now we'll assume it uses an admin-like service account or we just allow it.
-      // In a real app, you'd have a specific device token.
+      allow read: if deviceId == 'esp32' && isDevice();
+      allow create, update: if deviceId == 'esp32' && isDevice() && isValidDeviceStatus(request.resource.data);
     }
 
     // Admin profiles
@@ -104,6 +130,13 @@ service cloud.firestore {
       allow read: if isAdmin();
     }
 
+    // Sections (daycare groups)
+    match /sections/{sectionId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidSection(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
     // Students
     match /students/{studentId} {
       allow read: if isAdmin();
@@ -116,6 +149,12 @@ service cloud.firestore {
         allow update: if isAdmin() && isValidBMIRecord(request.resource.data) && 
                       request.resource.data.timestamp == resource.data.timestamp;
         allow delete: if isAdmin();
+      }
+
+      // Meal plans sub-collection
+      match /mealPlans/{planId} {
+        allow read, delete: if isAdmin();
+        allow create, update: if isAdmin() && isValidMealPlan(request.resource.data);
       }
     }
 

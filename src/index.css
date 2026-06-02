@@ -1,21 +1,114 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-primary: #5B5FC7;
+  --color-primary-hover: #4A4EB5;
+  --color-primary-light: #EEF0FF;
+  --color-primary-muted: #C5C8F0;
+
+  --color-accent: #F5A623;
+  --color-accent-light: #FEF3C7;
+
+  --color-success: #2EAD7A;
+  --color-success-light: #D1FAE5;
+
+  --color-danger: #E05A5A;
+  --color-danger-light: #FEE2E2;
+
+  --color-info: #3B82F6;
+  --color-info-light: #DBEAFE;
+
+  --color-surface: #FAFAF8;
+  --color-card: #FFFFFF;
+  --color-border: #E8E8ED;
+
+  --color-text: #1E2030;
+  --color-text-muted: #6B7280;
+}
+
+.dark {
+  color-scheme: dark;
+
+  --color-primary: #7B7FE8;
+  --color-primary-hover: #9296F0;
+  --color-primary-light: #2A2B5C;
+  --color-primary-muted: #4A4D8A;
+
+  --color-accent: #F5A623;
+  --color-accent-light: #3D3520;
+
+  --color-success: #3CC98E;
+  --color-success-light: #1A3D2E;
+
+  --color-danger: #F07070;
+  --color-danger-light: #3D2020;
+
+  --color-info: #60A5FA;
+  --color-info-light: #1E3A5F;
+
+  --color-surface: #12131A;
+  --color-card: #1A1B24;
+  --color-border: #2A2B38;
+
+  --color-text: #F0F0F5;
+  --color-text-muted: #9CA3AF;
 }
 
 @layer base {
+  html, body, #root {
+    @apply w-full min-h-screen;
+  }
+
   body {
-    @apply bg-slate-50 text-slate-900 font-sans;
-    background-image: 
-      radial-gradient(circle at 2px 2px, #e2e8f0 1px, transparent 0);
-    background-size: 32px 32px;
+    @apply bg-surface text-text font-sans antialiased transition-colors duration-200;
   }
 }
 
-.medical-grid {
-  background-image: linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px);
-  background-size: 20px 20px;
+/* Compatibility for components still using slate/white utilities */
+.dark .bg-white { background-color: var(--color-card); }
+.dark .bg-slate-50 { background-color: var(--color-surface); }
+.dark .bg-slate-100 { background-color: color-mix(in srgb, var(--color-border) 60%, var(--color-card)); }
+.dark .hover\:bg-slate-50:hover { background-color: var(--color-surface); }
+.dark .hover\:bg-slate-100:hover { background-color: color-mix(in srgb, var(--color-border) 60%, var(--color-card)); }
+.dark .border-slate-100,
+.dark .border-slate-200 { border-color: var(--color-border); }
+.dark .text-slate-300,
+.dark .text-slate-400,
+.dark .text-slate-500 { color: var(--color-text-muted); }
+.dark .text-slate-600,
+.dark .text-slate-700,
+.dark .text-slate-800,
+.dark .text-slate-900 { color: var(--color-text); }
+.dark .hover\:text-slate-700:hover { color: var(--color-text); }
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]),
+.dark .divide-border > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-border); }
+.dark .shadow-sm { box-shadow: 0 1px 2px rgb(0 0 0 / 0.3); }
+.dark .shadow-lg { box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4); }
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.dark .scrollbar-thin {
+  scrollbar-color: #4b5563 transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
 }
