@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Filter, FolderOpen, Plus } from 'lucide-react';
+import { Filter, FolderOpen, Plus, UserPlus2, FilePlus2 } from 'lucide-react';
 import { AnimatePresence } from 'motion/react';
 import { db, doc, deleteDoc } from '../../firebase';
 import { deleteStudentPhoto } from '../../lib/supabase';
@@ -175,17 +175,32 @@ export function StudentsView({
           />
         )}
         {showAddStudent && (
-          <Modal onClose={() => setShowAddStudent(false)} title="Add New Student">
-            <StudentForm sections={sections} onSuccess={() => setShowAddStudent(false)} />
+          <Modal
+            onClose={() => setShowAddStudent(false)}
+            title="Add New Student"
+            subtitle="Enter student details to create a new profile."
+            icon={<UserPlus2 className="w-5 h-5" />}
+          >
+            <StudentForm sections={sections} onSuccess={() => setShowAddStudent(false)} onCancel={() => setShowAddStudent(false)} />
           </Modal>
         )}
         {showEditStudent && selectedStudent && (
-          <Modal onClose={() => setShowEditStudent(false)} title="Edit Student Profile">
-            <StudentForm student={selectedStudent} sections={sections} onSuccess={() => setShowEditStudent(false)} />
+          <Modal
+            onClose={() => setShowEditStudent(false)}
+            title="Edit Student Profile"
+            subtitle="Update student details and health notes."
+            icon={<UserPlus2 className="w-5 h-5" />}
+          >
+            <StudentForm student={selectedStudent} sections={sections} onSuccess={() => setShowEditStudent(false)} onCancel={() => setShowEditStudent(false)} />
           </Modal>
         )}
         {showAddRecord && selectedStudent && (
-          <Modal onClose={() => setShowAddRecord(false)} title={`New Record for ${selectedStudent.name}`}>
+          <Modal
+            onClose={() => setShowAddRecord(false)}
+            title={`New Record for ${selectedStudent.name}`}
+            subtitle="Add a new height, weight, and BMI evaluation."
+            icon={<FilePlus2 className="w-5 h-5" />}
+          >
             <AddRecordForm studentId={selectedStudent.id} onSuccess={() => setShowAddRecord(false)} />
           </Modal>
         )}

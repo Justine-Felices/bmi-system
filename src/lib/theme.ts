@@ -1,10 +1,10 @@
 export const chartColors = {
-  primary: '#5B5FC7',
-  success: '#2EAD7A',
-  accent: '#F5A623',
-  danger: '#E05A5A',
-  info: '#3B82F6',
-  muted: '#6B7280',
-  pink: '#EC4899',
-  sky: '#0EA5E9',
+  primary: "#4A8CF7",
+  success: "#28B47E",
+  accent: "#F7B84B",
+  danger: "#FF6B6B",
+  info: "#4BA3FF",
+  muted: "#8A9AB8",
+  pink: "#F472B6",
+  sky: "#60A5FA",
 } as const;

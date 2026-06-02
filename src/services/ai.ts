@@ -48,28 +48,100 @@ export interface GenerateMealPlanInput {
   periodType: 'weekly' | 'monthly';
 }
 
+function normalizeBmiCategory(category: string): 'Underweight' | 'Healthy' | 'Overweight' | 'Obese' {
+  const c = (category || '').toLowerCase();
+  if (c.includes('under')) return 'Underweight';
+  if (c.includes('obese')) return 'Obese';
+  if (c.includes('over')) return 'Overweight';
+  // Treat "normal" as healthy
+  return 'Healthy';
+}
+
+function getLifestyleSuggestions(category: 'Underweight' | 'Healthy' | 'Overweight' | 'Obese'): string[] {
+  switch (category) {
+    case 'Underweight':
+      return [
+        'Sleep 10–12 hours tonight to support growth.',
+        'Add 1 extra merienda (healthy snack) today.',
+        'Drink milk or yogurt daily for extra calories and calcium.',
+        'Include peanut-free (if allergic) healthy fats like avocado or olive oil.',
+        'Do light outdoor play (20–30 minutes) to build appetite.',
+      ];
+    case 'Overweight':
+      return [
+        'Do at least 60 minutes of active play today (run, dance, jump).',
+        'Drink water instead of juice or soft drinks.',
+        'Limit screen time and take movement breaks every hour.',
+        'Choose fruits for merienda instead of sugary snacks.',
+        'Sleep 10–12 hours to help regulate appetite and energy.',
+      ];
+    case 'Obese':
+      return [
+        'Do at least 60 minutes of active play today (break it into 2–3 sessions).',
+        'Drink water all day; avoid sugary drinks.',
+        'Use smaller rice portions and add more vegetables.',
+        'Take a short family walk after dinner.',
+        'Sleep 10–12 hours and keep a consistent bedtime.',
+      ];
+    case 'Healthy':
+    default:
+      return [
+        'Keep a consistent bedtime and sleep 10–12 hours.',
+        'Play outside for at least 30–60 minutes today.',
+        'Drink enough water (6–8 small glasses).',
+        'Eat fruits and vegetables at least twice today.',
+        'Limit sweets to special treats and keep portions child-sized.',
+      ];
+  }
+}
+
+export function getLifestyleSuggestionsForCategory(category: string): string[] {
+  return getLifestyleSuggestions(normalizeBmiCategory(category));
+}
+
 export async function generateMealPlan(input: GenerateMealPlanInput): Promise<MealPlanDay[]> {
   const dayCount = input.periodType === 'weekly' ? 5 : 20;
   const allergyNote = input.allergies.length
     ? `STRICTLY avoid: ${input.allergies.join(', ')}.`
     : 'No known allergies.';
 
-  const portionGuidance = input.category === 'Underweight'
-    ? 'Use calorie-dense, nutrient-rich portions appropriate for daycare.'
-    : input.category === 'Overweight' || input.category === 'Obese'
-      ? 'Use balanced, age-appropriate portions with emphasis on vegetables and lean protein.'
-      : 'Use standard balanced daycare portions.';
+  const normalized = normalizeBmiCategory(input.category);
+  let categoryGuidance = '';
+  if (normalized === 'Underweight') {
+    categoryGuidance = `This child is UNDERWEIGHT. The meal plan should:
+- Focus on calorie-dense, nutrient-rich Filipino dishes to help the child gain healthy weight.
+- Include energy-boosting foods like lugaw with egg, champorado with gatas, arroz caldo, sopas with evaporated milk.
+- Add extra rice portions, use dishes with coconut milk (ginataang kalabasa, ginataang hipon).
+- Suggestions should focus on: eating more frequent meals, getting enough sleep (10-12 hours), drinking milk, and light physical play.`;
+  } else if (normalized === 'Overweight' || normalized === 'Obese') {
+    categoryGuidance = `This child is ${normalized.toUpperCase()}. The meal plan should:
+- Focus on balanced, portion-controlled Filipino dishes with more vegetables and lean protein.
+- Prefer steamed/boiled dishes over fried (nilagang baka over crispy pata, pinakbet over fried lumpia).
+- Use brown rice or reduce rice portions, increase vegetable sides.
+- Reduce sugary merienda — use fresh fruits instead of kakanin or fried snacks.
+- Suggestions should focus on: more physical exercise (at least 60 min/day), outdoor play, drinking water instead of juice, limiting screen time, and getting 10-12 hours of sleep.`;
+  } else {
+    categoryGuidance = `This child has a HEALTHY/NORMAL BMI. The meal plan should:
+- Maintain balanced, nutritious Filipino dishes with proper portions.
+- Include a good variety of proteins, vegetables, and carbohydrates.
+- Suggestions should focus on: maintaining active lifestyle, regular outdoor play, staying hydrated, and consistent sleep schedule (10-12 hours).`;
+  }
 
-  const prompt = `You are a daycare nutritionist. Create a ${input.periodType} meal plan for a ${input.age}-year-old child.
+  const prompt = `You are a Filipino daycare nutritionist. Create a ${input.periodType} meal plan for a ${input.age}-year-old Filipino child.
 BMI: ${input.latestBmi} (${input.category}). ${allergyNote}
-${portionGuidance}
+
+${categoryGuidance}
 
 Return ONLY a JSON array of exactly ${dayCount} objects with this shape:
-[{"dayLabel":"Monday","breakfast":"...","amSnack":"...","lunch":"...","pmSnack":"..."}]
+[{"dayLabel":"Monday","breakfast":"...","amSnack":"...","lunch":"...","pmSnack":"...","suggestion":"..."}]
 
-Rules:
-- Daycare-appropriate Filipino/international meals suitable for young children
-- Include breakfast, lunch; amSnack and pmSnack optional but preferred
+CRITICAL RULES:
+- ALL meals MUST be authentic Filipino dishes that a Filipino child would actually eat.
+- Use real Filipino dish names (e.g., Lugaw, Champorado, Arroz Caldo, Pandesal with cheese, Tortang talong, Sinigang na baboy, Tinola, Adobo, Ginisang monggo, Pinakbet, Nilagang baka, Ginisang ampalaya, Bistek Tagalog, Pancit canton, Lumpiang gulay, Ginataang kalabasa, Turon, Banana cue, Kamote cue, Saging na saba with milk, Biko, Palitaw, Sopas).
+- Every single day MUST have DIFFERENT meals — absolutely NO repetition of the same dish across days. Each breakfast, lunch, amSnack, and pmSnack must be unique across the entire plan.
+- Include a mix of ulam, sabaw, gulay, merienda, and kakanin.
+- Portions should be child-appropriate for daycare.
+- The "suggestion" field MUST contain a short, actionable daily lifestyle tip for the child based on their BMI category (e.g., "Sleep at least 10 hours tonight", "Play outside for 30 minutes after school", "Drink 6 glasses of water today", "Do stretching exercises before bedtime", "Eat slowly and chew food well"). Each day's suggestion should be DIFFERENT.
 - For monthly plans use labels like "Week 1 - Mon", "Week 1 - Tue", etc.
 - No markdown, no explanation, only the JSON array`;
 
@@ -86,22 +158,60 @@ Rules:
         amSnack: d.amSnack || '',
         lunch: d.lunch || '',
         pmSnack: d.pmSnack || '',
+        suggestion: d.suggestion || '',
       }));
     }
   } catch (error) {
     console.error('Meal plan generation failed:', error);
   }
 
-  const fallbackDays = input.periodType === 'weekly'
-    ? ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday']
-    : Array.from({ length: 20 }, (_, i) => `Day ${i + 1}`);
+  // Fallback with BMI-aware suggestions
+  const tips = getLifestyleSuggestions(normalized);
 
-  return fallbackDays.map(dayLabel => ({
-    dayLabel,
-    breakfast: 'Oatmeal with fruit',
-    amSnack: 'Apple slices',
-    lunch: 'Rice, grilled chicken, vegetables',
-    pmSnack: 'Yogurt',
+  const weeklyFallbackByCategory: Record<typeof normalized, MealPlanDay[]> = {
+    Underweight: [
+      { dayLabel: 'Monday', breakfast: 'Champorado with gatas at peanut butter', amSnack: 'Banana cue', lunch: 'Sinigang na baboy with extra rice', pmSnack: 'Palitaw', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg and cheese', amSnack: 'Saging na saba with milk', lunch: 'Chicken Tinola with rice + extra malunggay', pmSnack: 'Biko', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo with egg', amSnack: 'Turon', lunch: 'Ginataang kalabasa with chicken and rice', pmSnack: 'Pan de coco', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Lugaw with tokwa and egg', amSnack: 'Kamote cue', lunch: 'Adobong manok with rice', pmSnack: 'Leche flan (small portion)', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Sopas with evaporated milk', amSnack: 'Pandesal with peanut-free spreads (if allergic)', lunch: 'Nilagang baka with rice', pmSnack: 'Fruit salad (with yogurt)', suggestion: tips[4] },
+    ],
+    Healthy: [
+      { dayLabel: 'Monday', breakfast: 'Pandesal with cheese', amSnack: 'Banana', lunch: 'Chicken Tinola with rice', pmSnack: 'Turon', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Lugaw with egg', amSnack: 'Saging na saba', lunch: 'Pinakbet with rice and fish', pmSnack: 'Biko (small portion)', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo', amSnack: 'Fruit cup', lunch: 'Adobong manok with rice', pmSnack: 'Camote cue', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Champorado with milk', amSnack: 'Mais con yelo (small)', lunch: 'Sinigang na isda with rice', pmSnack: 'Puto', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Sopas', amSnack: 'Pandesal', lunch: 'Ginisang monggo with rice', pmSnack: 'Fresh mango slices', suggestion: tips[4] },
+    ],
+    Overweight: [
+      { dayLabel: 'Monday', breakfast: 'Oatmeal champorado (less sugar)', amSnack: 'Apple slices', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Saging na saba', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg (no mayo)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Sinigang na hipon with vegetables + small rice', pmSnack: 'Cucumber sticks with dip', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Orange slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Boiled corn', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Tortang talong (less oil)', amSnack: 'Pineapple slices', lunch: 'Ginisang monggo (less chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', suggestion: tips[4] },
+    ],
+    Obese: [
+      { dayLabel: 'Monday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Apple slices', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Tortang talong (less oil)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Oatmeal with fruit', amSnack: 'Orange slices', lunch: 'Sinigang na isda with vegetables + small rice', pmSnack: 'Boiled corn', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Pineapple slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Cucumber sticks', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Champorado (less sugar, small)', amSnack: 'Guava slices', lunch: 'Ginisang monggo (no chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', suggestion: tips[4] },
+    ],
+  };
+
+  const weeklyFallback = weeklyFallbackByCategory[normalized];
+
+  if (input.periodType === 'weekly') return weeklyFallback;
+
+  // For monthly, cycle through varied days
+  const monthlyLabels = Array.from({ length: 20 }, (_, i) => {
+    const week = Math.floor(i / 5) + 1;
+    const day = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'][i % 5];
+    return `Week ${week} - ${day}`;
+  });
+  return monthlyLabels.map((label, i) => ({
+    ...weeklyFallback[i % 5],
+    dayLabel: label,
   }));
 }
 

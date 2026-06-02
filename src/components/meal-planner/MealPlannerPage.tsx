@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Save, UtensilsCrossed } from 'lucide-react';
-import { generateMealPlan } from '../../services/ai';
+import { generateMealPlan, getLifestyleSuggestionsForCategory } from '../../services/ai';
 import { useMealPlans, buildPlanDates, createDraftPlanId } from '../../hooks/useMealPlans';
 import { useMealPlanComparison } from '../../hooks/useMealPlanComparison';
 import { handleFirestoreError, OperationType } from '../../services/firestore-errors';
@@ -34,6 +34,7 @@ export function MealPlannerPage({
   const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
   const [draftMeals, setDraftMeals] = useState<MealPlan['meals']>([]);
   const [draftNotes, setDraftNotes] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const [draftPlanId, setDraftPlanId] = useState<string | null>(null);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -67,6 +68,7 @@ export function MealPlannerPage({
     setSelectedPlanId(null);
     setDraftMeals([]);
     setDraftNotes('');
+    setSuggestions([]);
     setDraftPlanId(null);
     setMode('view');
   }, [selectedStudentId]);
@@ -90,6 +92,7 @@ export function MealPlannerPage({
       setDraftMeals(meals);
       setDraftPlanId(createDraftPlanId());
       setDraftNotes('');
+      setSuggestions(getLifestyleSuggestionsForCategory(latestCategory.label));
       setSelectedPlanId(null);
       setMode('edit');
     } finally {
@@ -112,6 +115,7 @@ export function MealPlannerPage({
       setDraftMeals(meals);
       setDraftPlanId(createDraftPlanId());
       setDraftNotes('');
+      setSuggestions(getLifestyleSuggestionsForCategory(latestCategory.label));
       setSelectedPlanId(null);
       setMode('edit');
     } finally {
@@ -225,6 +229,33 @@ export function MealPlannerPage({
                     notes={draftNotes}
                     onNotesChange={setDraftNotes}
                   />
+                </div>
+              )}
+
+              {(mode === 'edit' ? draftMeals.length > 0 : !!activePlan) && latestCategory && suggestions.length > 0 && (
+                <div className="p-4 rounded-2xl bg-card/80 backdrop-blur border border-border">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
+                    <div>
+                      <p className="text-sm font-bold text-text">Suggestions</p>
+                      <p className="text-xs text-text-muted mt-0.5">
+                        Based on BMI status: <span className="font-semibold text-text">{latestCategory.label}</span>
+                      </p>
+                    </div>
+                    <StatusBadge label={latestCategory.label} />
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {suggestions.slice(0, 6).map((s, i) => (
+                      <div
+                        key={`${i}-${s}`}
+                        className="p-3 rounded-2xl bg-surface/70 border border-border text-sm text-text flex items-start gap-2"
+                      >
+                        <span className="mt-0.5 w-6 h-6 rounded-xl bg-primary-light text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                          {i + 1}
+                        </span>
+                        <span className="text-sm text-text-muted leading-relaxed">{s}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

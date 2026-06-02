@@ -80,6 +80,8 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                 <th className="p-3 text-[10px] font-bold text-text-muted uppercase">PM Snack</th>
 
+                <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Suggestion</th>
+
               </tr>
 
             </thead>
@@ -96,7 +98,7 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                     <td className="p-2 font-semibold text-text whitespace-nowrap">{day.dayLabel}</td>
 
-                    {(['breakfast', 'amSnack', 'lunch', 'pmSnack'] as const).map(field => (
+                    {(['breakfast', 'amSnack', 'lunch', 'pmSnack', 'suggestion'] as const).map(field => (
 
                       <td key={field} className="p-2">
 
@@ -108,7 +110,7 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                           className="h-9 text-xs"
 
-                          placeholder={field === 'breakfast' || field === 'lunch' ? 'Required' : 'Optional'}
+                          placeholder={field === 'breakfast' || field === 'lunch' ? 'Required' : field === 'suggestion' ? 'e.g., Sleep 10 hrs' : 'Optional'}
 
                         />
 

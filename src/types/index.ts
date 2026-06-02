@@ -37,6 +37,7 @@ export interface MealPlanDay {
   amSnack?: string;
   lunch: string;
   pmSnack?: string;
+  suggestion?: string;
 }
 
 export interface MealPlan {

@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { useEffect, useState } from 'react';
-import { Calendar, Trash2 } from 'lucide-react';
+import { Calendar, Lightbulb, Trash2 } from 'lucide-react';
 import type { MealPlan } from '../../types';
 import { Button } from '../ui/Button';
 import { MEAL_PLAN_PAGE_SIZE, Pagination } from '../ui/Pagination';
@@ -106,6 +106,7 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">AM Snack</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Lunch</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">PM Snack</th>
+              <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Suggestion</th>
             </tr>
           </thead>
           <tbody>
@@ -116,6 +117,14 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
                 <td className="p-3 text-text-muted">{day.amSnack || '—'}</td>
                 <td className="p-3 text-text-muted">{day.lunch}</td>
                 <td className="p-3 text-text-muted">{day.pmSnack || '—'}</td>
+                <td className="p-3 text-text-muted">
+                  {day.suggestion ? (
+                    <span className="inline-flex items-start gap-1 text-xs">
+                      <Lightbulb className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
+                      {day.suggestion}
+                    </span>
+                  ) : '—'}
+                </td>
               </tr>
             ))}
           </tbody>
