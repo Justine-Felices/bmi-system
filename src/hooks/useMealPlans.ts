@@ -58,7 +58,20 @@ export function useMealPlans(studentId: string | null) {
       updatedAt: serverTimestamp(),
     });
     await setDoc(doc(db, `students/${studentId}/mealPlans`, planId), payload, { merge: true });
-  }, [studentId]);
+
+    if (data.status === 'active') {
+      const otherActive = plans.filter(p => p.id !== planId && p.status === 'active');
+      await Promise.all(
+        otherActive.map(p =>
+          setDoc(
+            doc(db, `students/${studentId}/mealPlans`, p.id),
+            { status: 'completed' as const, updatedAt: serverTimestamp() },
+            { merge: true },
+          ),
+        ),
+      );
+    }
+  }, [studentId, plans]);
 
   const deletePlan = useCallback(async (planId: string) => {
     if (!studentId || !db) return;

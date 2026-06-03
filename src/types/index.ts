@@ -51,6 +51,8 @@ export interface MealPlan {
   baselineCategory: string;
   baselineRecordId?: string;
   meals: MealPlanDay[];
+  /** General lifestyle tips for the whole plan (not tied to a specific day). */
+  lifestyleTips?: string[];
   status: 'draft' | 'active' | 'completed';
   notes?: string;
   createdAt: Timestamp;

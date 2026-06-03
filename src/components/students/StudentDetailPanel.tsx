@@ -22,6 +22,7 @@ import {
   getValidRecordsForReport,
   sortRecordsNewestFirst,
 } from '../../utils/report';
+import { getPlanLifestyleTips } from '../../utils/meal-plans';
 import type { Student, BMIRecord, MealPlan, MealPlanDay } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
@@ -37,13 +38,14 @@ async function resolveMealPlanForReport(
   latestRecord: BMIRecord,
   categoryLabel: string,
   plans: MealPlan[],
-): Promise<{ meals: MealPlanDay[]; subtitle: string }> {
+): Promise<{ meals: MealPlanDay[]; subtitle: string; lifestyleTips?: string[] }> {
   const saved = plans.find(p => p.status === 'active') ?? plans.find(p => p.meals?.length);
   if (saved?.meals?.length) {
     const periodLabel = saved.periodType === 'weekly' ? 'Weekly' : 'Monthly';
     return {
       meals: saved.meals,
       subtitle: `${periodLabel} plan (${saved.startDate} – ${saved.endDate}) · baseline BMI ${saved.baselineBmi}`,
+      lifestyleTips: getPlanLifestyleTips(saved),
     };
   }
 
@@ -53,6 +55,7 @@ async function resolveMealPlanForReport(
     latestBmi,
     category: categoryLabel,
     allergies: student.allergies || [],
+    healthIssues: latestRecord.healthIssues,
     age: calculateAge(student.dob),
     periodType: 'weekly',
   });
@@ -144,7 +147,7 @@ export function StudentDetailPanel({
       const latestValidCategory = latestValid ? getBMICategory(latestValid.bmi) : null;
 
       if (latestValid && latestValidCategory) {
-        const { meals, subtitle } = await resolveMealPlanForReport(
+        const { meals, subtitle, lifestyleTips } = await resolveMealPlanForReport(
           student,
           latestValid,
           latestValidCategory.label,
@@ -170,7 +173,7 @@ export function StudentDetailPanel({
           autoTable(pdfDoc, {
             ...pdfTable,
             startY: mealStartY + 6 + captionLines.length * 4,
-            head: [['Day', 'Breakfast', 'AM Snack', 'Lunch', 'PM Snack', 'Dinner', 'Tip']],
+            head: [['Day', 'Breakfast', 'AM Snack', 'Lunch', 'PM Snack', 'Dinner']],
             body: meals.map(d => [
               d.dayLabel || '—',
               d.breakfast || '—',
@@ -178,13 +181,29 @@ export function StudentDetailPanel({
               d.lunch || '—',
               d.pmSnack || '—',
               d.dinner || '—',
-              d.suggestion || '—',
             ]),
             theme: 'striped',
             styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', valign: 'top' },
             headStyles: { fillColor: [20, 184, 166], fontSize: 8 },
             columnStyles: getMealPlanColumnStyles(pdfTable.tableWidth),
           });
+
+          if (lifestyleTips && lifestyleTips.length > 0) {
+            let tipsY = ((pdfDoc as PdfWithAutoTable).lastAutoTable?.finalY ?? mealStartY) + 10;
+            if (tipsY > 250) {
+              pdfDoc.addPage();
+              tipsY = 20;
+            }
+            pdfDoc.setFontSize(11);
+            pdfDoc.setTextColor(0, 0, 0);
+            pdfDoc.text('Lifestyle tips (general)', 15, tipsY);
+            pdfDoc.setFontSize(9);
+            pdfDoc.setTextColor(60, 60, 60);
+            const tipLines = lifestyleTips.flatMap((tip, i) =>
+              pdfDoc.splitTextToSize(`${i + 1}. ${tip}`, 180),
+            );
+            pdfDoc.text(tipLines, 15, tipsY + 6);
+          }
         }
       }
 

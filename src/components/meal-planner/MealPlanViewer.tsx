@@ -5,6 +5,8 @@ import type { MealPlan } from '../../types';
 import { Button } from '../ui/Button';
 import { MEAL_PLAN_PAGE_SIZE, Pagination } from '../ui/Pagination';
 import { StatusBadge } from '../students/StatusBadge';
+import { getPlanLifestyleTips } from '../../utils/meal-plans';
+import { cn } from '../../lib/utils';
 
 interface MealPlanViewerProps {
   plans: MealPlan[];
@@ -28,7 +30,7 @@ export function MealPlanViewer({
   if (plans.length === 0) {
     return (
       <div className="p-6 rounded-2xl border border-dashed border-border text-center text-sm text-text-muted">
-        No saved meal plans yet. Generate one above.
+        No saved meal plans yet. Click &quot;New plan&quot; to create one.
       </div>
     );
   }
@@ -40,12 +42,21 @@ export function MealPlanViewer({
         {plans.map(plan => (
           <div
             key={plan.id}
-            className={`p-3 rounded-xl border cursor-pointer transition-colors ${
+            role="button"
+            tabIndex={0}
+            className={cn(
+              'p-3 rounded-xl border cursor-pointer transition-colors',
               selectedPlanId === plan.id
                 ? 'border-primary bg-primary-light/30'
-                : 'border-border hover:bg-surface'
-            }`}
+                : 'border-border hover:bg-surface',
+            )}
             onClick={() => onSelectPlan(plan.id)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onSelectPlan(plan.id);
+              }
+            }}
           >
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -80,8 +91,35 @@ export function MealPlanViewer({
   );
 }
 
+function LifestyleTipsBlock({ tips }: { tips: string[] }) {
+  if (tips.length === 0) return null;
+
+  return (
+    <div className="p-4 border-t border-border bg-surface/50">
+      <p className="text-[10px] font-bold text-text-muted uppercase mb-3 flex items-center gap-1.5">
+        <Lightbulb className="w-3.5 h-3.5 text-accent" />
+        Lifestyle tips (any day this week)
+      </p>
+      <ul className="space-y-2">
+        {tips.map((tip, i) => (
+          <li
+            key={`${i}-${tip.slice(0, 24)}`}
+            className="text-sm text-text-muted flex gap-2 p-3 rounded-xl bg-card border border-border"
+          >
+            <span className="w-6 h-6 rounded-lg bg-primary-light text-primary flex items-center justify-center text-xs font-bold shrink-0">
+              {i + 1}
+            </span>
+            <span className="leading-relaxed">{tip}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
   const [page, setPage] = useState(1);
+  const lifestyleTips = getPlanLifestyleTips(plan);
   const totalPages = Math.max(1, Math.ceil(plan.meals.length / MEAL_PLAN_PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
   const start = (currentPage - 1) * MEAL_PLAN_PAGE_SIZE;
@@ -92,13 +130,13 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
   }, [plan.id]);
 
   return (
-    <div className="rounded-2xl border border-border overflow-hidden">
+    <div className="rounded-2xl border border-border overflow-hidden" id="meal-plan-view">
       <div className="p-4 bg-surface border-b border-border">
         <p className="text-sm font-bold text-text capitalize">{plan.periodType} Plan</p>
         <p className="text-xs text-text-muted">{plan.startDate} — {plan.endDate}</p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[800px]">
+        <table className="w-full text-sm min-w-[640px]">
           <thead>
             <tr className="text-left bg-card">
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Day</th>
@@ -107,7 +145,6 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Lunch</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">PM Snack</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Dinner</th>
-              <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Suggestion</th>
             </tr>
           </thead>
           <tbody>
@@ -119,14 +156,6 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
                 <td className="p-3 text-text-muted">{day.lunch}</td>
                 <td className="p-3 text-text-muted">{day.pmSnack || '—'}</td>
                 <td className="p-3 text-text-muted">{day.dinner || '—'}</td>
-                <td className="p-3 text-text-muted">
-                  {day.suggestion ? (
-                    <span className="inline-flex items-start gap-1 text-xs">
-                      <Lightbulb className="w-3.5 h-3.5 text-accent shrink-0 mt-0.5" />
-                      {day.suggestion}
-                    </span>
-                  ) : '—'}
-                </td>
               </tr>
             ))}
           </tbody>
@@ -140,6 +169,7 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
         onPageChange={setPage}
         itemLabel="days"
       />
+      <LifestyleTipsBlock tips={lifestyleTips} />
       {plan.notes && (
         <div className="p-4 border-t border-border bg-surface">
           <p className="text-[10px] font-bold text-text-muted uppercase">Notes</p>

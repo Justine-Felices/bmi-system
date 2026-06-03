@@ -13,9 +13,9 @@ export function getPdfTableLayout(doc: jsPDF) {
   };
 }
 
-/** Column width ratios for the 7-column meal plan table (must sum to 1). */
+/** Column width ratios for the 6-column meal plan table (must sum to 1). */
 export function getMealPlanColumnStyles(tableWidth: number) {
-  const ratios = [0.1, 0.15, 0.12, 0.15, 0.12, 0.15, 0.21];
+  const ratios = [0.11, 0.17, 0.14, 0.18, 0.14, 0.26];
   return Object.fromEntries(ratios.map((ratio, index) => [index, { cellWidth: tableWidth * ratio }]));
 }
 

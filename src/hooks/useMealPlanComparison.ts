@@ -38,40 +38,48 @@ export function useMealPlanComparison(
   useEffect(() => {
     if (!student || !plan || !newerRecord) {
       setComparison(null);
+      setLoading(false);
       return;
     }
 
     let cancelled = false;
     setLoading(true);
+    setComparison(null);
 
     const run = async () => {
-      const currentCategory = getBMICategory(newerRecord.bmi).label;
-      const aiSummary = await generateMealPlanComparison({
-        student,
-        plan,
-        previousBmi: plan.baselineBmi,
-        currentBmi: newerRecord.bmi,
-        previousCategory: plan.baselineCategory,
-        currentCategory,
-      });
+      try {
+        const currentCategory = getBMICategory(newerRecord.bmi).label;
+        const aiSummary = await generateMealPlanComparison({
+          student,
+          plan,
+          previousBmi: plan.baselineBmi,
+          currentBmi: newerRecord.bmi,
+          previousCategory: plan.baselineCategory,
+          currentCategory,
+        });
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      setComparison({
-        planId: plan.id,
-        baselineBmi: plan.baselineBmi,
-        currentBmi: newerRecord.bmi,
-        baselineCategory: plan.baselineCategory,
-        currentCategory,
-        bmiDelta: parseFloat((newerRecord.bmi - plan.baselineBmi).toFixed(2)),
-        categoryChanged: plan.baselineCategory !== currentCategory,
-        aiSummary,
-      });
-      setLoading(false);
+        setComparison({
+          planId: plan.id,
+          baselineBmi: plan.baselineBmi,
+          currentBmi: newerRecord.bmi,
+          baselineCategory: plan.baselineCategory,
+          currentCategory,
+          bmiDelta: parseFloat((newerRecord.bmi - plan.baselineBmi).toFixed(2)),
+          categoryChanged: plan.baselineCategory !== currentCategory,
+          aiSummary,
+        });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
     };
 
     run();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      setLoading(false);
+    };
   }, [student, plan, newerRecord]);
 
   return { comparison, loading, hasNewerRecord: !!newerRecord, newerRecord };

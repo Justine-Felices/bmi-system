@@ -1,7 +1,6 @@
 import type React from 'react';
 import { useState } from 'react';
 import {
-  Activity,
   AlertCircle,
   ArrowRight,
   ClipboardList,
@@ -107,7 +106,7 @@ export function LoginScreen() {
       <div className="relative z-10 flex flex-col flex-1 lg:flex-[1.5] px-6 sm:px-10 lg:px-14 py-8 lg:py-10 min-h-0 overflow-visible">
         <div className="flex items-center gap-3">
           <div className="w-11 h-11 rounded-full bg-white/10 border border-white/15 flex items-center justify-center text-cyan-400">
-            <Activity className="w-5 h-5" />
+            <HeartPulse className="w-5 h-5" />
           </div>
           <div>
             <p className="font-bold text-lg text-white leading-tight">BMI Monitor</p>
