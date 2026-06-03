@@ -8,7 +8,7 @@ import {
 } from 'recharts';
 import {
   X, Plus, FileText, Stethoscope, Calendar, User as UserIcon,
-  GraduationCap, AlertCircle, Edit2, Trash2, TrendingUp, History, UtensilsCrossed,
+  GraduationCap, AlertCircle, Edit2, Trash2, TrendingUp, History, UtensilsCrossed, Loader2,
 } from 'lucide-react';
 import { generateAIReport } from '../../services/ai';
 import { cn } from '../../lib/utils';
@@ -42,10 +42,13 @@ export function StudentDetailPanel({
   onViewMealPlan,
 }: StudentDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const latest = records[0];
   const category = latest ? getBMICategory(latest.bmi) : null;
 
   const handleGenerateReport = async () => {
+    setIsGeneratingReport(true);
+    try {
     const pdfDoc = new jsPDF();
     pdfDoc.setFontSize(20);
     pdfDoc.text(`Health Report: ${student.name}`, 15, 20);
@@ -83,6 +86,9 @@ export function StudentDetailPanel({
       ]),
     });
     pdfDoc.save(`${student.name}_Health_Report.pdf`);
+    } finally {
+      setIsGeneratingReport(false);
+    }
   };
 
   const tabs: { id: DetailTab; label: string }[] = [
@@ -295,8 +301,18 @@ export function StudentDetailPanel({
         <Button onClick={onAddRecord} className="flex-1 h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-sm">
           <Plus className="w-4 h-4 mr-1.5" /> New Evaluation
         </Button>
-        <Button variant="outline" onClick={handleGenerateReport} className="flex-1 h-10 rounded-xl text-sm">
-          <FileText className="w-4 h-4 mr-1.5" /> Generate Report
+        <Button
+          variant="outline"
+          onClick={handleGenerateReport}
+          disabled={isGeneratingReport}
+          className="flex-1 h-10 rounded-xl text-sm"
+        >
+          {isGeneratingReport ? (
+            <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+          ) : (
+            <FileText className="w-4 h-4 mr-1.5" />
+          )}
+          {isGeneratingReport ? 'Generating...' : 'Generate Report'}
         </Button>
       </div>
 

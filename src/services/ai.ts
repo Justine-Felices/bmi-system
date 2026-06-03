@@ -1,32 +1,155 @@
 import { GoogleGenAI } from '@google/genai';
-import type { MealPlan, MealPlanDay, Student } from '../types';
+import { format } from 'date-fns';
+import type { MealPlan, MealPlanDay, Student, BMIRecord, DashboardData } from '../types';
+import { getBMICategory, calculateAge } from '../utils/bmi';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const GEMINI_MODEL = 'gemini-2.5-flash';
+
+function getGeminiApiKey(): string | undefined {
+  const key = process.env.GEMINI_API_KEY?.trim();
+  if (!key || key === 'MY_GEMINI_API_KEY' || key.includes('PLACEHOLDER')) return undefined;
+  return key;
+}
+
+function getAIClient(): GoogleGenAI | null {
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) return null;
+  return new GoogleGenAI({ apiKey });
+}
+
+function serializeForAI(value: unknown): unknown {
+  if (value == null) return value;
+  if (Array.isArray(value)) return value.map(serializeForAI);
+  if (typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    if (typeof obj.toDate === 'function') {
+      return (obj.toDate as () => Date)().toISOString();
+    }
+    if (typeof obj.seconds === 'number') {
+      return new Date(obj.seconds * 1000).toISOString();
+    }
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj)) {
+      out[k] = serializeForAI(v);
+    }
+    return out;
+  }
+  return value;
+}
+
+interface IndividualReportData {
+  student: Student;
+  history: BMIRecord[];
+}
+
+function buildIndividualReportFallback(data: IndividualReportData): string {
+  const { student, history } = data;
+  const sorted = [...history].sort((a, b) => {
+    const ta = a.timestamp?.toDate?.()?.getTime() ?? 0;
+    const tb = b.timestamp?.toDate?.()?.getTime() ?? 0;
+    return tb - ta;
+  });
+  const latest = sorted[0];
+  if (!latest) {
+    return `${student.name} has no BMI evaluations on record yet. Schedule an initial screening to establish a baseline.`;
+  }
+
+  const category = getBMICategory(latest.bmi);
+  const age = calculateAge(student.dob);
+  const issues = latest.healthIssues?.length
+    ? latest.healthIssues.join(', ')
+    : 'none reported';
+
+  let trend = '';
+  if (sorted.length >= 2) {
+    const previous = sorted[1];
+    const delta = latest.bmi - previous.bmi;
+    if (Math.abs(delta) < 0.3) trend = 'BMI has remained relatively stable since the previous evaluation.';
+    else if (delta < 0) trend = `BMI decreased by ${Math.abs(delta).toFixed(1)} since the last check (${previous.bmi} → ${latest.bmi}), which is a positive trend if moving toward a healthier range.`;
+    else trend = `BMI increased by ${delta.toFixed(1)} since the last check (${previous.bmi} → ${latest.bmi}). Monitor nutrition and activity closely.`;
+  }
+
+  const advice =
+    category.label === 'Underweight'
+      ? 'Encourage nutrient-dense meals, regular snacks, and adequate sleep (10–12 hours). Consult school health staff if weight does not improve.'
+      : category.label === 'Overweight' || category.label === 'Obese'
+        ? 'Focus on balanced portions, daily physical activity (60 minutes), water instead of sugary drinks, and consistent follow-up evaluations.'
+        : 'Maintain balanced meals, regular physical activity, and routine check-ups to sustain healthy growth.';
+
+  const dateLabel = latest.timestamp?.toDate
+    ? format(latest.timestamp.toDate(), 'MMMM d, yyyy')
+    : 'the most recent visit';
+
+  return [
+    `${student.name} (age ${age || 'N/A'}, ${student.gender}) was last evaluated on ${dateLabel}.`,
+    `Current measurements: ${latest.height} cm, ${latest.weight} kg, BMI ${latest.bmi} (${category.label}).`,
+    `Recorded health issues: ${issues}.`,
+    trend,
+    advice,
+    sorted.length > 1
+      ? `${sorted.length} evaluations are on file; continue tracking at regular intervals.`
+      : 'Only one evaluation is on file; additional measurements will help track progress over time.',
+  ].filter(Boolean).join(' ');
+}
+
+function buildGeneralReportFallback(data: DashboardData): string {
+  const topCategory = data.healthStatusBreakdown.reduce(
+    (best, item) => (item.value > (best?.value ?? 0) ? item : best),
+    data.healthStatusBreakdown[0],
+  );
+  const insightLines = data.insights.slice(0, 3).map(i => `${i.title}: ${i.description}`);
+
+  return [
+    `This school monitors ${data.totalStudents} students with ${data.totalRecords} BMI evaluations in the selected period.`,
+    `Average BMI is ${data.avgBMI.toFixed(1)}. ${data.healthyCount} students (${data.healthyPercent}%) are in the healthy range; ${data.atRiskCount} (${data.atRiskPercent}%) are underweight, overweight, or obese.`,
+    topCategory
+      ? `The most common BMI category is ${topCategory.name} (${topCategory.value} students).`
+      : '',
+    data.evaluationsToday > 0
+      ? `${data.evaluationsToday} evaluation(s) were recorded today.`
+      : '',
+    ...insightLines,
+    'Recommend continuing regular screenings, promoting balanced nutrition and daily physical activity, and prioritizing follow-up for students outside the healthy BMI range.',
+  ].filter(Boolean).join(' ');
+}
 
 export async function generateAIReport(data: unknown, type: 'general' | 'individual') {
+  const client = getAIClient();
+  const serialized = serializeForAI(data);
   const prompt = type === 'general'
     ? `Analyze this school health data and provide a concise summary report (max 300 words). 
        Include: 
        1. Overall health status of the student population.
        2. Key trends (e.g., most common BMI category).
        3. Recommendations for school health programs.
-       Data: ${JSON.stringify(data)}`
+       Data: ${JSON.stringify(serialized)}`
     : `Analyze this student's BMI history and provide a personalized health summary (max 200 words).
        Include:
        1. Current status and progress.
        2. Specific health advice for the student/parents.
-       Student Data: ${JSON.stringify(data)}`;
+       Student Data: ${JSON.stringify(serialized)}`;
+
+  if (!client) {
+    console.warn('GEMINI_API_KEY is missing or invalid — using rule-based report summary.');
+    return type === 'general'
+      ? buildGeneralReportFallback(data as DashboardData)
+      : buildIndividualReportFallback(data as IndividualReportData);
+  }
 
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+    const response = await client.models.generateContent({
+      model: GEMINI_MODEL,
       contents: prompt,
     });
-    return response.text;
+    const text = response.text?.trim();
+    if (text) return text;
   } catch (error) {
     console.error('AI Generation failed:', error);
-    return 'Unable to generate AI analysis at this time.';
   }
+
+  return type === 'general'
+    ? buildGeneralReportFallback(data as DashboardData)
+    : buildIndividualReportFallback(data as IndividualReportData);
 }
 
 function parseJsonArray<T>(text: string): T[] | null {
@@ -145,24 +268,27 @@ CRITICAL RULES:
 - For monthly plans use labels like "Week 1 - Mon", "Week 1 - Tue", etc.
 - No markdown, no explanation, only the JSON array`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-    const parsed = parseJsonArray<MealPlanDay>(response.text || '');
-    if (parsed && parsed.length > 0) {
-      return parsed.map(d => ({
-        dayLabel: d.dayLabel || 'Day',
-        breakfast: d.breakfast || '',
-        amSnack: d.amSnack || '',
-        lunch: d.lunch || '',
-        pmSnack: d.pmSnack || '',
-        suggestion: d.suggestion || '',
-      }));
+  const client = getAIClient();
+  if (client) {
+    try {
+      const response = await client.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+      });
+      const parsed = parseJsonArray<MealPlanDay>(response.text || '');
+      if (parsed && parsed.length > 0) {
+        return parsed.map(d => ({
+          dayLabel: d.dayLabel || 'Day',
+          breakfast: d.breakfast || '',
+          amSnack: d.amSnack || '',
+          lunch: d.lunch || '',
+          pmSnack: d.pmSnack || '',
+          suggestion: d.suggestion || '',
+        }));
+      }
+    } catch (error) {
+      console.error('Meal plan generation failed:', error);
     }
-  } catch (error) {
-    console.error('Meal plan generation failed:', error);
   }
 
   // Fallback with BMI-aware suggestions
@@ -235,16 +361,21 @@ Write a concise progress narrative (max 150 words) covering:
 2. Specific meal plan adjustment recommendations for the next period
 3. Encouraging tone for staff and parents`;
 
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-    return response.text || 'Unable to generate comparison summary.';
-  } catch (error) {
-    console.error('Meal plan comparison failed:', error);
-    const delta = input.currentBmi - input.previousBmi;
-    const direction = delta < 0 ? 'decreased' : delta > 0 ? 'increased' : 'remained stable';
-    return `BMI ${direction} from ${input.previousBmi} to ${input.currentBmi}. Category: ${input.previousCategory} → ${input.currentCategory}. Review portions and activity levels; consider generating an updated meal plan aligned with the current BMI category.`;
+  const client = getAIClient();
+  if (client) {
+    try {
+      const response = await client.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: prompt,
+      });
+      const text = response.text?.trim();
+      if (text) return text;
+    } catch (error) {
+      console.error('Meal plan comparison failed:', error);
+    }
   }
+
+  const delta = input.currentBmi - input.previousBmi;
+  const direction = delta < 0 ? 'decreased' : delta > 0 ? 'increased' : 'remained stable';
+  return `BMI ${direction} from ${input.previousBmi} to ${input.currentBmi}. Category: ${input.previousCategory} → ${input.currentCategory}. Review portions and activity levels; consider generating an updated meal plan aligned with the current BMI category.`;
 }
