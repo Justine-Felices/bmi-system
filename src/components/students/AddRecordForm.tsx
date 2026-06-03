@@ -100,6 +100,20 @@ export function AddRecordForm({ studentId, onSuccess }: AddRecordFormProps) {
     const finalWeight = parseFloat(weight);
     const finalBmi = parseFloat(bmi);
 
+    if (
+      !Number.isFinite(finalHeight) ||
+      !Number.isFinite(finalWeight) ||
+      !Number.isFinite(finalBmi) ||
+      finalHeight <= 0 ||
+      finalWeight <= 0 ||
+      finalBmi <= 0 ||
+      finalBmi >= 100
+    ) {
+      alert('Please enter valid height, weight, and BMI before saving.');
+      setLoading(false);
+      return;
+    }
+
     try {
       await addDoc(collection(db!, `students/${studentId}/records`), {
         studentId,

@@ -1,7 +1,6 @@
 import {
   Activity,
   ChevronDown,
-  Heart,
   LayoutDashboard,
   LogOut,
   UtensilsCrossed,
@@ -11,6 +10,7 @@ import { auth, signOut, type User } from "../../firebase";
 import type { ActiveTab } from "../../types";
 import { cn } from "../../lib/utils";
 import kidsInCloud from "../../assets/sidebar/kids-in-the-cloud.png";
+import { SidebarMotivationalCard } from "./SidebarMotivationalCard";
 
 interface SidebarProps {
   user: User;
@@ -59,7 +59,7 @@ export function Sidebar({
 
       <aside
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 flex flex-col w-64 sidebar-sky border-r border-border h-full lg:h-screen shrink-0 overflow-hidden transition-transform duration-200 relative",
+          "fixed lg:static lg:relative inset-y-0 left-0 z-50 flex flex-col w-64 sidebar-sky border-r border-border h-full lg:h-screen shrink-0 overflow-hidden transition-transform duration-200",
           mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
@@ -102,31 +102,16 @@ export function Sidebar({
 
         </nav>
 
-        <div className="relative px-0 -mx-2 -my-1">
+        <div className="relative px-0 -mx-2 -my-1 hidden md:block">
           <img
             src={kidsInCloud}
             alt="Kids in the cloud"
-            className="w-full object-contain scale-[1.85] origin-center"
+            className="w-full object-contain scale-[1.35] lg:scale-[1.85] origin-center"
           />
         </div>
 
         <div className="relative shrink-0 p-4 pt-1 space-y-3">
-          <div className="[@media(max-height:720px)]:hidden p-5 rounded-[24px] bg-[#fffbeb] border border-[#fef3c7] shadow-sm">
-            <div className="flex gap-3 items-start">
-              <Heart className="w-5 h-5 text-[#f87171] fill-[#fecaca]/20 shrink-0 mt-0.5" />
-              <div className="flex flex-col gap-0.5">
-                <p className="font-bold text-[#1e2a44] text-[13px] leading-tight">
-                  Healthy kids,
-                </p>
-                <p className="font-bold text-[#1e2a44] text-[13px] leading-tight">
-                  brighter future!
-                </p>
-                <p className="text-[11px] font-semibold text-[#6b7a99] mt-2">
-                  Track. Care. Grow.
-                </p>
-              </div>
-            </div>
-          </div>
+          <SidebarMotivationalCard />
 
           <div className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-card/80">
             <div className="w-9 h-9 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold shrink-0">

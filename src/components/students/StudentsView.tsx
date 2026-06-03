@@ -91,7 +91,7 @@ export function StudentsView({
     <div className="w-full space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-text">Students Directory</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-text">Students Directory</h1>
           <p className="text-sm text-text-muted mt-0.5">Manage and monitor student health records by section.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -116,7 +116,7 @@ export function StudentsView({
       <StudentsStatCards stats={directory.stats} />
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-        <div className={selectedStudent ? 'xl:col-span-8' : 'xl:col-span-12'}>
+        <div className={selectedStudent ? 'xl:col-span-8 min-w-0' : 'xl:col-span-12 min-w-0'}>
           <StudentsTable
             paginatedGroupedRows={directory.paginatedGroupedRows}
             sectionTotalCounts={directory.sectionTotalCounts}
@@ -148,7 +148,7 @@ export function StudentsView({
         </div>
 
         {selectedStudent && (
-          <div className="xl:col-span-4 sticky top-4">
+          <div className="hidden xl:block xl:col-span-4 sticky top-4 min-w-0">
             <StudentDetailPanel
               student={selectedStudent}
               records={records}
@@ -162,6 +162,29 @@ export function StudentsView({
           </div>
         )}
       </div>
+
+      {selectedStudent && (
+        <div className="xl:hidden fixed inset-0 z-50 flex justify-end">
+          <button
+            type="button"
+            className="absolute inset-0 bg-slate-900/50"
+            aria-label="Close student details"
+            onClick={() => setSelectedStudent(null)}
+          />
+          <div className="relative w-full max-w-md h-full max-h-[100dvh] shadow-2xl">
+            <StudentDetailPanel
+              student={selectedStudent}
+              records={records}
+              onClose={() => setSelectedStudent(null)}
+              onAddRecord={() => setShowAddRecord(true)}
+              onEdit={() => setShowEditStudent(true)}
+              onDelete={() => setShowDeleteConfirm({ type: 'student', id: selectedStudent.id })}
+              onDeleteRecord={(recordId) => setShowDeleteConfirm({ type: 'record', id: recordId })}
+              onViewMealPlan={onNavigateToMealPlanner ? () => onNavigateToMealPlanner(selectedStudent.id) : undefined}
+            />
+          </div>
+        </div>
+      )}
 
       <AnimatePresence>
         {showSectionManager && (

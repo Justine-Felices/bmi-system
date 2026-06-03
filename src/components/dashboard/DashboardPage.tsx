@@ -2,12 +2,12 @@ import { useState } from "react";
 import { format, subDays } from "date-fns";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import html2canvas from "html2canvas";
 import { BarChart3, Calendar, Cloud, Sparkles, Loader2 } from "lucide-react";
 import { generateAIReport } from "../../services/ai";
 import type { DashboardData, DateFilter } from "../../types";
 import { cn } from "../../lib/utils";
 import { Button } from "../ui/Button";
+import { PdfPreviewModal } from "../ui/PdfPreviewModal";
 import { StatCardsRow } from "./StatCardsRow";
 import { BmiTrendCard } from "./BmiTrendCard";
 import { HealthStatusCard } from "./HealthStatusCard";
@@ -50,6 +50,14 @@ export function DashboardPage({
 }: DashboardPageProps) {
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [showDateMenu, setShowDateMenu] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
+
+  const closePdfPreview = () => {
+    if (pdfPreview?.url) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview(null);
+  };
 
   const handleDownloadPDF = async () => {
     setIsGeneratingReport(true);
@@ -88,51 +96,62 @@ export function DashboardPage({
           ["Healthy BMI", `${data.healthyCount} (${data.healthyPercent}%)`],
           ["At Risk", `${data.atRiskCount} (${data.atRiskPercent}%)`],
           ["Total Evaluations", data.totalRecords.toString()],
-          ["Avg. BMI", data.avgBMI.toFixed(1)],
+          ["Avg. BMI", Number.isFinite(data.avgBMI) ? data.avgBMI.toFixed(1) : "—"],
         ],
         theme: "striped",
         headStyles: { fillColor: [20, 184, 166] },
       });
 
-      currentY =
-        (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable
-          .finalY + 20;
+      type DocWithTable = jsPDF & { lastAutoTable?: { finalY: number } };
+      let tableY =
+        ((doc as DocWithTable).lastAutoTable?.finalY ?? currentY) + 14;
 
-      const chartIds = [
-        { id: "chart-bmi-trend", title: "BMI Trend" },
-        { id: "chart-bmi-dist", title: "Health Status Breakdown" },
-        { id: "chart-gender-dist", title: "Gender Distribution" },
-        { id: "chart-grade-dist", title: "Grade Distribution" },
-      ];
-
-      for (const chart of chartIds) {
-        const element = document.getElementById(chart.id);
-        if (element) {
-          try {
-            const canvas = await html2canvas(element, {
-              scale: 2,
-              useCORS: true,
-              logging: false,
-              backgroundColor: "#ffffff",
-            });
-            const imgData = canvas.toDataURL("image/png");
-
-            if (currentY + 80 > doc.internal.pageSize.getHeight() - 20) {
-              doc.addPage();
-              currentY = 20;
-            }
-
-            doc.setFontSize(12);
-            doc.text(chart.title, 15, currentY - 5);
-            doc.addImage(imgData, "PNG", 15, currentY, 180, 70);
-            currentY += 85;
-          } catch (e) {
-            console.error(`Failed to capture chart ${chart.id}`, e);
-          }
+      const addSectionTable = (
+        title: string,
+        rows: string[][],
+      ) => {
+        if (rows.length === 0) return;
+        if (tableY > doc.internal.pageSize.getHeight() - 40) {
+          doc.addPage();
+          tableY = 20;
         }
-      }
+        doc.setFontSize(14);
+        doc.setTextColor(24, 24, 27);
+        doc.text(title, 15, tableY);
+        autoTable(doc, {
+          startY: tableY + 6,
+          head: [["Category", "Value"]],
+          body: rows,
+          theme: "striped",
+          headStyles: { fillColor: [20, 184, 166] },
+        });
+        tableY = ((doc as DocWithTable).lastAutoTable?.finalY ?? tableY) + 14;
+      };
 
-      doc.save(`Health_Report_${format(new Date(), "yyyy-MM-dd")}.pdf`);
+      addSectionTable(
+        "Health Status Breakdown",
+        data.healthStatusBreakdown.map((d) => [d.name, d.value.toString()]),
+      );
+      addSectionTable(
+        "Gender Distribution",
+        data.genderData.map((d) => [d.name, d.value.toString()]),
+      );
+      addSectionTable(
+        "Grade Distribution",
+        data.gradeData.map((d) => [d.name, d.value.toString()]),
+      );
+      addSectionTable(
+        "BMI Trend (recent)",
+        data.trendData.map((d) => [d.date, d.bmi.toString()]),
+      );
+
+      const fileName = `Health_Report_${format(new Date(), "yyyy-MM-dd")}.pdf`;
+      const blob = doc.output("blob");
+      const url = URL.createObjectURL(blob);
+      setPdfPreview((prev) => {
+        if (prev?.url) URL.revokeObjectURL(prev.url);
+        return { url, fileName };
+      });
     } catch (err) {
       console.error("PDF Generation failed:", err);
     } finally {
@@ -141,7 +160,8 @@ export function DashboardPage({
   };
 
   return (
-    <div className="space-y-6 w-full dash-fade">
+    <>
+    <div className="space-y-6 w-full min-w-0 max-w-full dash-fade">
       <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="pointer-events-none absolute inset-0 hidden sm:block">
           <Cloud className="absolute -top-2 left-40 w-8 h-8 text-info/30" />
@@ -152,21 +172,21 @@ export function DashboardPage({
         <div className="relative">
           <div className="flex items-center gap-2">
 
-            <h1 className="text-2xl font-bold text-text">Welcome Back!</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-text">Welcome Back!</h1>
           </div>
           <p className="text-sm text-text-muted mt-0.5">
             Let's keep our students healthy and growing.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <div className="relative">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="relative w-full sm:w-auto">
             <button
               onClick={() => setShowDateMenu(!showDateMenu)}
-              className="flex items-center gap-2 h-10 px-4 rounded-xl border border-accent/40 bg-accent-light/80 text-sm font-semibold text-text hover:bg-accent-light transition-colors"
+              className="flex items-center justify-center sm:justify-start gap-2 h-10 px-4 rounded-xl border border-accent/40 bg-accent-light/80 text-sm font-semibold text-text hover:bg-accent-light transition-colors w-full sm:w-auto"
             >
-              <Calendar className="w-4 h-4 text-accent" />
-              {getDateRangeLabel(dateFilter)}
+              <Calendar className="w-4 h-4 text-accent shrink-0" />
+              <span className="truncate">{getDateRangeLabel(dateFilter)}</span>
             </button>
             {showDateMenu && (
               <>
@@ -174,7 +194,7 @@ export function DashboardPage({
                   className="fixed inset-0 z-10"
                   onClick={() => setShowDateMenu(false)}
                 />
-                <div className="absolute right-0 top-full mt-2 z-20 bg-white border border-border rounded-2xl soft-card-shadow py-1 min-w-[170px]">
+                <div className="absolute left-0 right-0 sm:left-auto sm:right-0 top-full mt-2 z-20 bg-white border border-border rounded-2xl soft-card-shadow py-1 min-w-[170px] sm:max-w-none">
                   {(Object.keys(dateFilterLabels) as DateFilter[]).map(
                     (key) => (
                       <button
@@ -202,7 +222,7 @@ export function DashboardPage({
           <Button
             onClick={handleDownloadPDF}
             disabled={isGeneratingReport || loading}
-            className="h-10 px-5 rounded-full"
+            className="h-10 px-5 rounded-full w-full sm:w-auto"
           >
             {isGeneratingReport ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -243,5 +263,15 @@ export function DashboardPage({
         <InsightsCard data={data} />
       </div>
     </div>
+    {pdfPreview && (
+      <PdfPreviewModal
+        previewUrl={pdfPreview.url}
+        fileName={pdfPreview.fileName}
+        title="Population Health Report"
+        subtitle={`Generated ${format(new Date(), "PPP")}`}
+        onClose={closePdfPreview}
+      />
+    )}
+    </>
   );
 }

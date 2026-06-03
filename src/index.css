@@ -68,7 +68,11 @@
   }
 
   body {
-    @apply bg-surface text-text font-sans antialiased transition-colors duration-200;
+    @apply bg-surface text-text font-sans antialiased transition-colors duration-200 overflow-x-hidden;
+  }
+
+  html {
+    overflow-x: hidden;
   }
 }
 

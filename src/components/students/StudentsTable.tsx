@@ -161,23 +161,23 @@ export function StudentsTable({
             className="w-full h-10 pl-10 pr-4 rounded-xl border border-border bg-surface text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary focus:bg-card"
           />
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Select value={sectionFilter} onChange={e => onSectionFilterChange(e.target.value)} className="w-auto min-w-[130px] h-10 rounded-xl text-sm">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap w-full sm:w-auto">
+          <Select value={sectionFilter} onChange={e => onSectionFilterChange(e.target.value)} className="w-full sm:w-auto sm:min-w-[130px] h-10 rounded-xl text-sm col-span-2 sm:col-span-1">
             <option value="all">All Sections</option>
             {sections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             <option value={UNASSIGNED_SECTION_ID}>Unassigned</option>
           </Select>
-          <Select value={gradeFilter} onChange={e => onGradeFilterChange(e.target.value)} className="w-auto min-w-[120px] h-10 rounded-xl text-sm">
+          <Select value={gradeFilter} onChange={e => onGradeFilterChange(e.target.value)} className="w-full sm:w-auto sm:min-w-[120px] h-10 rounded-xl text-sm">
             <option value="all">All Grades</option>
             {grades.map(g => <option key={g} value={g}>{g}</option>)}
           </Select>
-          <Select value={genderFilter} onChange={e => onGenderFilterChange(e.target.value as 'all' | 'male' | 'female' | 'other')} className="w-auto min-w-[120px] h-10 rounded-xl text-sm">
+          <Select value={genderFilter} onChange={e => onGenderFilterChange(e.target.value as 'all' | 'male' | 'female' | 'other')} className="w-full sm:w-auto sm:min-w-[120px] h-10 rounded-xl text-sm">
             <option value="all">All Genders</option>
             <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
           </Select>
-          <Select value={statusFilter} onChange={e => onStatusFilterChange(e.target.value as StatusFilter)} className="w-auto min-w-[120px] h-10 rounded-xl text-sm">
+          <Select value={statusFilter} onChange={e => onStatusFilterChange(e.target.value as StatusFilter)} className="w-full sm:w-auto sm:min-w-[120px] h-10 rounded-xl text-sm">
             <option value="all">All Statuses</option>
             <option value="normal">Normal</option>
             <option value="overweight">Overweight</option>
@@ -185,7 +185,7 @@ export function StudentsTable({
             <option value="underweight">Underweight</option>
             <option value="no-data">No Data</option>
           </Select>
-          <button onClick={() => onToggleSort(sortField)} className="h-10 w-10 flex items-center justify-center rounded-xl border border-border text-text-muted hover:bg-surface" title="Toggle sort">
+          <button onClick={() => onToggleSort(sortField)} className="h-10 w-10 flex items-center justify-center rounded-xl border border-border text-text-muted hover:bg-surface col-span-2 sm:col-span-1 justify-self-end sm:justify-self-auto" title="Toggle sort">
             <ChevronsUpDown className="w-4 h-4" />
           </button>
         </div>

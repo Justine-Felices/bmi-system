@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import html2canvas from 'html2canvas';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from 'recharts';
@@ -13,10 +12,20 @@ import {
 import { generateAIReport, generateMealPlan } from '../../services/ai';
 import { useMealPlans } from '../../hooks/useMealPlans';
 import { cn } from '../../lib/utils';
-import { getBMICategory, calculateAge } from '../../utils/bmi';
+import { getBMICategory, calculateAge, getRecordBmi } from '../../utils/bmi';
+import {
+  buildMealPlanPdfCaption,
+  formatBmiForDisplay,
+  formatMeasurement,
+  getMealPlanColumnStyles,
+  getPdfTableLayout,
+  getValidRecordsForReport,
+  sortRecordsNewestFirst,
+} from '../../utils/report';
 import type { Student, BMIRecord, MealPlan, MealPlanDay } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
+import { PdfPreviewModal } from '../ui/PdfPreviewModal';
 import { StatusBadge } from './StatusBadge';
 
 type DetailTab = 'overview' | 'evaluations' | 'history' | 'notes';
@@ -38,9 +47,10 @@ async function resolveMealPlanForReport(
     };
   }
 
+  const latestBmi = getRecordBmi(latestRecord) ?? latestRecord.bmi;
   const meals = await generateMealPlan({
     student,
-    latestBmi: latestRecord.bmi,
+    latestBmi,
     category: categoryLabel,
     allergies: student.allergies || [],
     age: calculateAge(student.dob),
@@ -76,6 +86,14 @@ export function StudentDetailPanel({
 }: StudentDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const [pdfPreview, setPdfPreview] = useState<{ url: string; fileName: string } | null>(null);
+
+  const closePdfPreview = () => {
+    if (pdfPreview?.url) {
+      URL.revokeObjectURL(pdfPreview.url);
+    }
+    setPdfPreview(null);
+  };
   const { plans: mealPlans } = useMealPlans(student.id);
   const latest = records[0];
   const category = latest ? getBMICategory(latest.bmi) : null;
@@ -84,6 +102,7 @@ export function StudentDetailPanel({
     setIsGeneratingReport(true);
     try {
       const pdfDoc = new jsPDF();
+      const pdfTable = getPdfTableLayout(pdfDoc);
       pdfDoc.setFontSize(20);
       pdfDoc.text(`Health Report: ${student.name}`, 15, 20);
       pdfDoc.setFontSize(12);
@@ -93,44 +112,46 @@ export function StudentDetailPanel({
 
       pdfDoc.setFontSize(16);
       pdfDoc.text('AI Health Summary', 15, 58);
-      const aiAnalysis = await generateAIReport({ student, history: records }, 'individual');
+      const validRecords = getValidRecordsForReport(records);
+      const rawAnalysis = await generateAIReport({ student, history: validRecords }, 'individual');
+      const aiAnalysis = (rawAnalysis || 'No analysis available.').replace(/\bNaN\b/g, '—');
       pdfDoc.setFontSize(10);
-      const splitText = pdfDoc.splitTextToSize(aiAnalysis || 'No analysis available.', 180);
+      const splitText = pdfDoc.splitTextToSize(aiAnalysis, 180);
       pdfDoc.text(splitText, 15, 65);
 
-      let currentY = 65 + splitText.length * 5 + 10;
-      const chartElement = document.getElementById('student-detail-bmi-trend');
-      if (chartElement) {
-        try {
-          const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
-          pdfDoc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, currentY, 180, 60);
-          currentY += 70;
-        } catch (e) {
-          console.error('Chart capture failed', e);
-        }
-      }
+      const recordsStartY = 65 + splitText.length * 5 + 14;
+      pdfDoc.setFontSize(14);
+      pdfDoc.setTextColor(0, 0, 0);
+      pdfDoc.text('Evaluation History', 15, recordsStartY);
 
       autoTable(pdfDoc, {
-        startY: currentY,
+        ...pdfTable,
+        startY: recordsStartY + 6,
         head: [['Date', 'Height', 'Weight', 'BMI', 'Issues']],
-        body: records.map(r => [
+        body: sortRecordsNewestFirst(records).map(r => [
           r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
-          `${r.height}cm`, `${r.weight}kg`, r.bmi.toString(),
+          formatMeasurement(r.height, 'cm'),
+          formatMeasurement(r.weight, 'kg'),
+          formatBmiForDisplay(getRecordBmi(r) ?? r.bmi),
           r.healthIssues?.join(', ') || 'None',
         ]),
         theme: 'striped',
-        headStyles: { fillColor: [20, 184, 166] },
+        styles: { fontSize: 9, cellPadding: 2, overflow: 'linebreak', valign: 'middle' },
+        headStyles: { fillColor: [20, 184, 166], fontSize: 9 },
       });
 
-      if (latest && category) {
+      const latestValid = validRecords[0];
+      const latestValidCategory = latestValid ? getBMICategory(latestValid.bmi) : null;
+
+      if (latestValid && latestValidCategory) {
         const { meals, subtitle } = await resolveMealPlanForReport(
           student,
-          latest,
-          category.label,
+          latestValid,
+          latestValidCategory.label,
           mealPlans,
         );
 
-        let mealStartY = ((pdfDoc as PdfWithAutoTable).lastAutoTable?.finalY ?? currentY) + 14;
+        let mealStartY = ((pdfDoc as PdfWithAutoTable).lastAutoTable?.finalY ?? recordsStartY) + 14;
         if (mealStartY > 240) {
           pdfDoc.addPage();
           mealStartY = 20;
@@ -141,40 +162,39 @@ export function StudentDetailPanel({
         pdfDoc.text('Meal Plan', 15, mealStartY);
         pdfDoc.setFontSize(9);
         pdfDoc.setTextColor(80, 80, 80);
-        const allergyNote = student.allergies?.length
-          ? ` · Avoid: ${student.allergies.join(', ')}`
-          : '';
-        const parentNote = ' · School meals + dinner at home';
-        pdfDoc.text(subtitle + parentNote + allergyNote, 15, mealStartY + 7);
+        const caption = buildMealPlanPdfCaption(subtitle, student.allergies);
+        const captionLines = pdfDoc.splitTextToSize(caption, 180);
+        pdfDoc.text(captionLines, 15, mealStartY + 7);
 
-        autoTable(pdfDoc, {
-          startY: mealStartY + 12,
-          head: [['Day', 'Breakfast', 'AM Snack', 'Lunch', 'PM Snack', 'Dinner', 'Daily Tip']],
-          body: meals.map(d => [
-            d.dayLabel,
-            d.breakfast,
-            d.amSnack || '—',
-            d.lunch,
-            d.pmSnack || '—',
-            d.dinner || '—',
-            d.suggestion || '—',
-          ]),
-          theme: 'striped',
-          styles: { fontSize: 6, cellPadding: 1.5, overflow: 'linebreak' },
-          headStyles: { fillColor: [20, 184, 166], fontSize: 6 },
-          columnStyles: {
-            0: { cellWidth: 18 },
-            1: { cellWidth: 26 },
-            2: { cellWidth: 20 },
-            3: { cellWidth: 26 },
-            4: { cellWidth: 20 },
-            5: { cellWidth: 26 },
-            6: { cellWidth: 24 },
-          },
-        });
+        if (meals.length > 0) {
+          autoTable(pdfDoc, {
+            ...pdfTable,
+            startY: mealStartY + 6 + captionLines.length * 4,
+            head: [['Day', 'Breakfast', 'AM Snack', 'Lunch', 'PM Snack', 'Dinner', 'Tip']],
+            body: meals.map(d => [
+              d.dayLabel || '—',
+              d.breakfast || '—',
+              d.amSnack || '—',
+              d.lunch || '—',
+              d.pmSnack || '—',
+              d.dinner || '—',
+              d.suggestion || '—',
+            ]),
+            theme: 'striped',
+            styles: { fontSize: 8, cellPadding: 2.5, overflow: 'linebreak', valign: 'top' },
+            headStyles: { fillColor: [20, 184, 166], fontSize: 8 },
+            columnStyles: getMealPlanColumnStyles(pdfTable.tableWidth),
+          });
+        }
       }
 
-      pdfDoc.save(`${student.name}_Health_Report.pdf`);
+      const blob = pdfDoc.output('blob');
+      const url = URL.createObjectURL(blob);
+      const fileName = `${student.name}_Health_Report.pdf`;
+      setPdfPreview((prev) => {
+        if (prev?.url) URL.revokeObjectURL(prev.url);
+        return { url, fileName };
+      });
     } finally {
       setIsGeneratingReport(false);
     }
@@ -194,7 +214,8 @@ export function StudentDetailPanel({
       : 'Maintain current healthy habits and schedule routine check-ups.';
 
   return (
-    <Card className="flex flex-col h-full overflow-hidden border-slate-200 shadow-lg">
+    <>
+    <Card className="flex flex-col h-full max-h-[100dvh] overflow-hidden border-slate-200 shadow-lg rounded-none sm:rounded-2xl">
       <div className="p-5 border-b border-slate-100 relative">
         <button
           onClick={onClose}
@@ -238,7 +259,7 @@ export function StudentDetailPanel({
       <div className="flex-1 overflow-y-auto p-5 space-y-5 scrollbar-thin">
         {activeTab === 'overview' && (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-center">
                 <p className="text-[10px] font-semibold text-slate-400 uppercase">BMI (Latest)</p>
                 <p className="text-xl font-bold text-slate-900 mt-1">{latest?.bmi ?? '—'}</p>
@@ -320,7 +341,7 @@ export function StudentDetailPanel({
                     <StatusBadge label={getBMICategory(record.bmi).label} />
                     <button
                       onClick={() => onDeleteRecord(record.id)}
-                      className="p-1 text-slate-300 hover:text-rose-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="p-1 text-slate-300 hover:text-rose-500 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -386,8 +407,8 @@ export function StudentDetailPanel({
         )}
       </div>
 
-      <div className="p-4 border-t border-slate-100 flex gap-2 shrink-0">
-        <Button onClick={onAddRecord} className="flex-1 h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-sm">
+      <div className="p-4 border-t border-slate-100 flex flex-col sm:flex-row gap-2 shrink-0">
+        <Button onClick={onAddRecord} className="flex-1 h-10 rounded-xl bg-teal-600 hover:bg-teal-700 text-sm w-full">
           <Plus className="w-4 h-4 mr-1.5" /> New Evaluation
         </Button>
         <Button
@@ -414,5 +435,15 @@ export function StudentDetailPanel({
         </Button>
       </div>
     </Card>
+    {pdfPreview && (
+      <PdfPreviewModal
+        previewUrl={pdfPreview.url}
+        fileName={pdfPreview.fileName}
+        title="Health Report Preview"
+        subtitle={student.name}
+        onClose={closePdfPreview}
+      />
+    )}
+    </>
   );
 }

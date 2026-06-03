@@ -1,7 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 import { format } from 'date-fns';
-import type { MealPlan, MealPlanDay, Student, BMIRecord, DashboardData } from '../types';
-import { getBMICategory, calculateAge } from '../utils/bmi';
+import type { MealPlan, MealPlanDay, Student, BMIRecord, DashboardData, DashboardInsight } from '../types';
+import { getBMICategory, calculateAge, getRecordBmi } from '../utils/bmi';
+import { getValidRecordsForReport } from '../utils/report';
 
 const GEMINI_MODEL = 'gemini-2.5-flash';
 
@@ -44,29 +45,33 @@ interface IndividualReportData {
 
 function buildIndividualReportFallback(data: IndividualReportData): string {
   const { student, history } = data;
-  const sorted = [...history].sort((a, b) => {
-    const ta = a.timestamp?.toDate?.()?.getTime() ?? 0;
-    const tb = b.timestamp?.toDate?.()?.getTime() ?? 0;
-    return tb - ta;
-  });
-  const latest = sorted[0];
+  const validHistory = getValidRecordsForReport(history);
+  const latest = validHistory[0];
   if (!latest) {
-    return `${student.name} has no BMI evaluations on record yet. Schedule an initial screening to establish a baseline.`;
+    return `${student.name} has no complete BMI evaluations on record yet. Schedule a screening with valid height and weight measurements.`;
   }
 
-  const category = getBMICategory(latest.bmi);
+  const latestBmi = getRecordBmi(latest) ?? latest.bmi;
+  const category = getBMICategory(latestBmi);
   const age = calculateAge(student.dob);
   const issues = latest.healthIssues?.length
     ? latest.healthIssues.join(', ')
     : 'none reported';
 
   let trend = '';
-  if (sorted.length >= 2) {
-    const previous = sorted[1];
-    const delta = latest.bmi - previous.bmi;
-    if (Math.abs(delta) < 0.3) trend = 'BMI has remained relatively stable since the previous evaluation.';
-    else if (delta < 0) trend = `BMI decreased by ${Math.abs(delta).toFixed(1)} since the last check (${previous.bmi} → ${latest.bmi}), which is a positive trend if moving toward a healthier range.`;
-    else trend = `BMI increased by ${delta.toFixed(1)} since the last check (${previous.bmi} → ${latest.bmi}). Monitor nutrition and activity closely.`;
+  if (validHistory.length >= 2) {
+    const previous = validHistory[1];
+    const previousBmi = getRecordBmi(previous) ?? previous.bmi;
+    const delta = latestBmi - previousBmi;
+    if (!Number.isFinite(delta)) {
+      trend = '';
+    } else if (Math.abs(delta) < 0.3) {
+      trend = 'BMI has remained relatively stable since the previous valid evaluation.';
+    } else if (delta < 0) {
+      trend = `BMI decreased by ${Math.abs(delta).toFixed(1)} since the last check (${previousBmi.toFixed(1)} → ${latestBmi.toFixed(1)}), which is a positive trend if moving toward a healthier range.`;
+    } else {
+      trend = `BMI increased by ${delta.toFixed(1)} since the last check (${previousBmi.toFixed(1)} → ${latestBmi.toFixed(1)}). Monitor nutrition and activity closely.`;
+    }
   }
 
   const advice =
@@ -82,13 +87,13 @@ function buildIndividualReportFallback(data: IndividualReportData): string {
 
   return [
     `${student.name} (age ${age || 'N/A'}, ${student.gender}) was last evaluated on ${dateLabel}.`,
-    `Current measurements: ${latest.height} cm, ${latest.weight} kg, BMI ${latest.bmi} (${category.label}).`,
+    `Current measurements: ${latest.height} cm, ${latest.weight} kg, BMI ${latestBmi.toFixed(1)} (${category.label}).`,
     `Recorded health issues: ${issues}.`,
     trend,
     advice,
-    sorted.length > 1
-      ? `${sorted.length} evaluations are on file; continue tracking at regular intervals.`
-      : 'Only one evaluation is on file; additional measurements will help track progress over time.',
+    validHistory.length > 1
+      ? `${validHistory.length} valid evaluations are on file; continue tracking at regular intervals.`
+      : 'Only one valid evaluation is on file; additional measurements will help track progress over time.',
   ].filter(Boolean).join(' ');
 }
 
@@ -101,7 +106,7 @@ function buildGeneralReportFallback(data: DashboardData): string {
 
   return [
     `This school monitors ${data.totalStudents} students with ${data.totalRecords} BMI evaluations in the selected period.`,
-    `Average BMI is ${data.avgBMI.toFixed(1)}. ${data.healthyCount} students (${data.healthyPercent}%) are in the healthy range; ${data.atRiskCount} (${data.atRiskPercent}%) are underweight, overweight, or obese.`,
+    `Average BMI is ${Number.isFinite(data.avgBMI) ? data.avgBMI.toFixed(1) : 'N/A'}. ${data.healthyCount} students (${data.healthyPercent}%) are in the healthy range; ${data.atRiskCount} (${data.atRiskPercent}%) are underweight, overweight, or obese.`,
     topCategory
       ? `The most common BMI category is ${topCategory.name} (${topCategory.value} students).`
       : '',
@@ -115,7 +120,14 @@ function buildGeneralReportFallback(data: DashboardData): string {
 
 export async function generateAIReport(data: unknown, type: 'general' | 'individual') {
   const client = getAIClient();
-  const serialized = serializeForAI(data);
+  const payload =
+    type === 'individual' && data && typeof data === 'object' && 'student' in data && 'history' in data
+      ? {
+          student: (data as IndividualReportData).student,
+          history: getValidRecordsForReport((data as IndividualReportData).history),
+        }
+      : data;
+  const serialized = serializeForAI(payload);
   const prompt = type === 'general'
     ? `Analyze this school health data and provide a concise summary report (max 300 words). 
        Include: 
@@ -160,6 +172,130 @@ function parseJsonArray<T>(text: string): T[] | null {
   } catch {
     return null;
   }
+}
+
+function normalizeInsightType(value: string | undefined): DashboardInsight['type'] {
+  if (value === 'alert' || value === 'success' || value === 'trend') return value;
+  return 'trend';
+}
+
+function parseDashboardInsights(text: string): DashboardInsight[] | null {
+  const parsed = parseJsonArray<{ type?: string; title?: string; description?: string }>(text);
+  if (!parsed?.length) return null;
+
+  const insights = parsed
+    .slice(0, 3)
+    .map((item) => ({
+      type: normalizeInsightType(item.type),
+      title: (item.title || '').trim() || 'Insight',
+      description: (item.description || '').trim(),
+    }))
+    .filter((item) => item.description.length > 0);
+
+  return insights.length > 0 ? insights : null;
+}
+
+function buildDashboardInsightsFallback(data: DashboardData): DashboardInsight[] {
+  const insights: DashboardInsight[] = [];
+
+  if (data.trendData.length >= 4) {
+    const mid = Math.floor(data.trendData.length / 2);
+    const firstHalf = data.trendData.slice(0, mid);
+    const secondHalf = data.trendData.slice(mid);
+    const avgFirst = firstHalf.reduce((s, d) => s + d.bmi, 0) / firstHalf.length;
+    const avgSecond = secondHalf.reduce((s, d) => s + d.bmi, 0) / secondHalf.length;
+    const trendIncreasing = avgSecond > avgFirst;
+    const trendPercent =
+      avgFirst > 0 ? Math.abs(Math.round(((avgSecond - avgFirst) / avgFirst) * 1000) / 10) : 0;
+
+    insights.push({
+      type: 'trend',
+      title: trendIncreasing ? 'BMI trend is increasing' : 'BMI trend is stable or improving',
+      description: trendIncreasing
+        ? `Average BMI increased by ${trendPercent}% in the selected period.`
+        : 'Average BMI decreased or held steady over the selected period.',
+    });
+  }
+
+  insights.push({
+    type: 'alert',
+    title: `${data.atRiskCount} student${data.atRiskCount !== 1 ? 's' : ''} need monitoring`,
+    description: 'Focus on nutrition and physical activity programs.',
+  });
+
+  insights.push({
+    type: 'success',
+    title: `${data.healthyPercent}% of students are healthy`,
+    description: 'Keep promoting healthy lifestyle habits across all grades.',
+  });
+
+  return insights;
+}
+
+function buildDashboardInsightsSnapshot(data: DashboardData) {
+  return {
+    totalStudents: data.totalStudents,
+    activeStudents: data.activeStudents,
+    totalRecords: data.totalRecords,
+    avgBMI: data.avgBMI,
+    healthyCount: data.healthyCount,
+    healthyPercent: data.healthyPercent,
+    atRiskCount: data.atRiskCount,
+    atRiskPercent: data.atRiskPercent,
+    evaluationsToday: data.evaluationsToday,
+    studentGrowthPercent: data.studentGrowthPercent,
+    healthStatusBreakdown: data.healthStatusBreakdown,
+    genderData: data.genderData,
+    gradeData: data.gradeData,
+    gradeBMIData: data.gradeBMIData,
+    trendData: data.trendData,
+  };
+}
+
+export async function generateDashboardInsights(
+  data: DashboardData,
+): Promise<{ insights: DashboardInsight[]; source: 'ai' | 'fallback' }> {
+  const fallback = (): { insights: DashboardInsight[]; source: 'fallback' } => ({
+    insights: data.insights?.length ? data.insights : buildDashboardInsightsFallback(data),
+    source: 'fallback',
+  });
+
+  const client = getAIClient();
+  if (!client) {
+    console.warn('GEMINI_API_KEY is missing or invalid — using rule-based dashboard insights.');
+    return fallback();
+  }
+
+  const snapshot = buildDashboardInsightsSnapshot(data);
+  const prompt = `You are a school health analyst for a Filipino daycare BMI monitoring system.
+Analyze this population health snapshot and return EXACTLY 3 actionable insights for administrators.
+
+Return ONLY a JSON array of 3 objects with this shape:
+[{"type":"trend"|"alert"|"success","title":"short headline","description":"1-2 sentences"}]
+
+Rules:
+- "trend" = patterns over time or average BMI movement
+- "alert" = risks, at-risk students, or urgent follow-ups
+- "success" = positive outcomes or healthy population highlights
+- Use specific numbers from the data
+- Practical for school staff and parents; warm professional tone
+- Title max 12 words; description max 45 words
+- No markdown, no extra text
+
+Data: ${JSON.stringify(snapshot)}`;
+
+  try {
+    const response = await client.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: prompt,
+    });
+    const parsed = parseDashboardInsights(response.text || '');
+    if (parsed) return { insights: parsed, source: 'ai' };
+  } catch (error) {
+    console.error('Dashboard insights generation failed:', error);
+  }
+
+  return fallback();
 }
 
 export interface GenerateMealPlanInput {

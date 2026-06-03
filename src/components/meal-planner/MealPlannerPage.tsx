@@ -160,7 +160,7 @@ export function MealPlannerPage({
   return (
     <div className="w-full space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-text flex items-center gap-2">
+        <h1 className="text-xl sm:text-2xl font-bold text-text flex items-center gap-2">
           <UtensilsCrossed className="w-7 h-7 text-primary" />
           Meal Planner
         </h1>
@@ -170,7 +170,7 @@ export function MealPlannerPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start">
-        <div className="xl:col-span-3">
+        <div className="xl:col-span-3 max-h-[45vh] xl:max-h-none overflow-hidden flex flex-col min-h-0">
           <MealPlannerStudentList
             students={students}
             sections={sections}

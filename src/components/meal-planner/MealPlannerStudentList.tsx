@@ -165,7 +165,7 @@ export function MealPlannerStudentList({
   }, [paginatedStudents, sectionFilter, sections, sectionMap]);
 
   return (
-    <div className="bg-card border border-border rounded-2xl flex flex-col h-full min-h-[400px]">
+    <div className="bg-card border border-border rounded-2xl flex flex-col h-full min-h-0 max-h-full xl:min-h-[400px]">
       <div className="p-4 border-b border-border space-y-3 shrink-0">
         <h2 className="text-sm font-bold text-text">Students</h2>
         <div className="relative">

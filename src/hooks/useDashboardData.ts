@@ -18,6 +18,7 @@ import {
   getLatestRecordPerStudent,
 } from '../utils/analytics';
 import { chartColors } from '../lib/theme';
+import { averageRecordBmi, getRecordBmi } from '../utils/bmi';
 
 function filterRecords(
   globalRecords: BMIRecord[],
@@ -75,7 +76,9 @@ export function useDashboardData(
     let atRiskCount = 0;
 
     for (const record of latestList) {
-      const cat = categorizeBMI(record.bmi);
+      const bmi = getRecordBmi(record);
+      if (bmi === null) continue;
+      const cat = categorizeBMI(bmi);
       categoryCounts[cat.key]++;
       if (cat.key === 'normal') healthyCount++;
       if (cat.key === 'overweight' || cat.key === 'obese') atRiskCount++;
@@ -94,9 +97,7 @@ export function useDashboardData(
 
     const pieData = healthStatusBreakdown;
 
-    const avgBMI = totalRecords > 0
-      ? parseFloat((filteredGlobalRecords.reduce((acc, r) => acc + r.bmi, 0) / totalRecords).toFixed(2))
-      : 0;
+    const avgBMI = averageRecordBmi(filteredGlobalRecords);
 
     const genders = { male: 0, female: 0, other: 0 };
     demographyPopulation.forEach(s => {
@@ -133,10 +134,12 @@ export function useDashboardData(
 
     const gradeBMIMap: Record<string, { sum: number; count: number }> = {};
     filteredGlobalRecords.forEach(r => {
+      const bmi = getRecordBmi(r);
+      if (bmi === null) return;
       const student = students.find(s => s.id === r.studentId);
       const grade = student?.grade || 'Unknown';
       if (!gradeBMIMap[grade]) gradeBMIMap[grade] = { sum: 0, count: 0 };
-      gradeBMIMap[grade].sum += r.bmi;
+      gradeBMIMap[grade].sum += bmi;
       gradeBMIMap[grade].count++;
     });
 
@@ -149,11 +152,12 @@ export function useDashboardData(
 
     const dailyMap: Record<string, { sum: number; count: number; rawDate: Date }> = {};
     filteredGlobalRecords.forEach(r => {
-      if (!r.timestamp) return;
+      const bmi = getRecordBmi(r);
+      if (!r.timestamp || bmi === null) return;
       const dateObj = r.timestamp.toDate();
       const dateKey = format(dateObj, 'yyyy-MM-dd');
       if (!dailyMap[dateKey]) dailyMap[dateKey] = { sum: 0, count: 0, rawDate: dateObj };
-      dailyMap[dateKey].sum += r.bmi;
+      dailyMap[dateKey].sum += bmi;
       dailyMap[dateKey].count++;
     });
 
@@ -170,17 +174,18 @@ export function useDashboardData(
       .slice(0, 5)
       .map(record => {
         const student = students.find(s => s.id === record.studentId);
-        const cat = categorizeBMI(record.bmi);
+        const bmi = getRecordBmi(record);
+        const cat = categorizeBMI(bmi ?? 0);
         return {
           recordId: record.id,
           student: student!,
-          bmi: record.bmi,
+          bmi: bmi ?? 0,
           category: cat.label,
           categoryColor: cat.color,
           evaluatedAt: record.timestamp?.toDate() ?? new Date(),
         };
       })
-      .filter(r => r.student);
+      .filter((r) => r.student && r.bmi > 0);
 
     const insights = computeInsights({ students, latestRecords, trendData });
     const studentGrowthPercent = computeMonthOverMonthDelta(students);

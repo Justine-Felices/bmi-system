@@ -91,7 +91,7 @@ export function LoginScreen() {
   };
 
   return (
-    <div className="login-page relative min-h-screen flex flex-col lg:flex-row overflow-hidden">
+    <div className="login-page relative min-h-[100dvh] flex flex-col lg:flex-row overflow-x-hidden overflow-y-auto">
       {/* Theme toggle */}
       <button
         type="button"

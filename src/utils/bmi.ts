@@ -10,8 +10,40 @@ export const getBMICategory = (bmi: number) => {
 
 export const calculateBMI = (h: number, w: number) => {
   const heightInMeters = h / 100;
+  if (!Number.isFinite(h) || !Number.isFinite(w) || h <= 0 || w <= 0) return NaN;
   return parseFloat((w / (heightInMeters * heightInMeters)).toFixed(2));
 };
+
+/** Resolves a numeric BMI from a record, computing from height/weight when bmi is missing or invalid. */
+export function getRecordBmi(record: {
+  bmi?: number;
+  height?: number;
+  weight?: number;
+}): number | null {
+  if (typeof record.bmi === 'number' && Number.isFinite(record.bmi) && record.bmi > 0 && record.bmi < 100) {
+    return record.bmi;
+  }
+  if (
+    typeof record.height === 'number' &&
+    typeof record.weight === 'number' &&
+    Number.isFinite(record.height) &&
+    Number.isFinite(record.weight) &&
+    record.height > 0 &&
+    record.weight > 0
+  ) {
+    const computed = calculateBMI(record.height, record.weight);
+    return Number.isFinite(computed) ? computed : null;
+  }
+  return null;
+}
+
+export function averageRecordBmi(
+  records: { bmi?: number; height?: number; weight?: number }[],
+): number {
+  const values = records.map(getRecordBmi).filter((v): v is number => v !== null);
+  if (values.length === 0) return 0;
+  return parseFloat((values.reduce((sum, v) => sum + v, 0) / values.length).toFixed(2));
+}
 
 export const calculateAge = (dob: string) => {
   try {
