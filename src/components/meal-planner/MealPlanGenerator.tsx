@@ -29,7 +29,7 @@ export function MealPlanGenerator({
         <h3 className="text-sm font-bold text-text">Generate Meal Plan</h3>
       </div>
       <p className="text-xs text-text-muted">
-        AI generates daycare-appropriate meals based on the student&apos;s BMI category, age, and allergies. Edit before saving.
+        AI generates a full-day plan for parents: school meals (breakfast through PM snack) plus dinner at home. Based on BMI, age, and allergies. Edit before saving.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div>

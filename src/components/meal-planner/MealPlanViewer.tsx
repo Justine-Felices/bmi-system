@@ -98,7 +98,7 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
         <p className="text-xs text-text-muted">{plan.startDate} — {plan.endDate}</p>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[640px]">
+        <table className="w-full text-sm min-w-[800px]">
           <thead>
             <tr className="text-left bg-card">
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Day</th>
@@ -106,6 +106,7 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">AM Snack</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Lunch</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">PM Snack</th>
+              <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Dinner</th>
               <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Suggestion</th>
             </tr>
           </thead>
@@ -117,6 +118,7 @@ export function MealPlanReadOnlyView({ plan }: { plan: MealPlan }) {
                 <td className="p-3 text-text-muted">{day.amSnack || '—'}</td>
                 <td className="p-3 text-text-muted">{day.lunch}</td>
                 <td className="p-3 text-text-muted">{day.pmSnack || '—'}</td>
+                <td className="p-3 text-text-muted">{day.dinner || '—'}</td>
                 <td className="p-3 text-text-muted">
                   {day.suggestion ? (
                     <span className="inline-flex items-start gap-1 text-xs">

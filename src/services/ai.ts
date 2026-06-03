@@ -250,21 +250,22 @@ export async function generateMealPlan(input: GenerateMealPlanInput): Promise<Me
 - Suggestions should focus on: maintaining active lifestyle, regular outdoor play, staying hydrated, and consistent sleep schedule (10-12 hours).`;
   }
 
-  const prompt = `You are a Filipino daycare nutritionist. Create a ${input.periodType} meal plan for a ${input.age}-year-old Filipino child.
+  const prompt = `You are a Filipino child nutritionist creating a meal plan for PARENTS. Create a ${input.periodType} plan for a ${input.age}-year-old Filipino child.
 BMI: ${input.latestBmi} (${input.category}). ${allergyNote}
 
 ${categoryGuidance}
 
 Return ONLY a JSON array of exactly ${dayCount} objects with this shape:
-[{"dayLabel":"Monday","breakfast":"...","amSnack":"...","lunch":"...","pmSnack":"...","suggestion":"..."}]
+[{"dayLabel":"Monday","breakfast":"...","amSnack":"...","lunch":"...","pmSnack":"...","dinner":"...","suggestion":"..."}]
 
 CRITICAL RULES:
 - ALL meals MUST be authentic Filipino dishes that a Filipino child would actually eat.
-- Use real Filipino dish names (e.g., Lugaw, Champorado, Arroz Caldo, Pandesal with cheese, Tortang talong, Sinigang na baboy, Tinola, Adobo, Ginisang monggo, Pinakbet, Nilagang baka, Ginisang ampalaya, Bistek Tagalog, Pancit canton, Lumpiang gulay, Ginataang kalabasa, Turon, Banana cue, Kamote cue, Saging na saba with milk, Biko, Palitaw, Sopas).
-- Every single day MUST have DIFFERENT meals — absolutely NO repetition of the same dish across days. Each breakfast, lunch, amSnack, and pmSnack must be unique across the entire plan.
-- Include a mix of ulam, sabaw, gulay, merienda, and kakanin.
-- Portions should be child-appropriate for daycare.
-- The "suggestion" field MUST contain a short, actionable daily lifestyle tip for the child based on their BMI category (e.g., "Sleep at least 10 hours tonight", "Play outside for 30 minutes after school", "Drink 6 glasses of water today", "Do stretching exercises before bedtime", "Eat slowly and chew food well"). Each day's suggestion should be DIFFERENT.
+- breakfast, amSnack, lunch, and pmSnack are typically served at school/daycare; dinner is the main evening meal at HOME for parents to prepare.
+- Every "dinner" MUST be a proper Filipino ulam with rice (not a light snack). pmSnack stays a light merienda; dinner is separate and heartier.
+- Use real Filipino dish names (e.g., Lugaw, Champorado, Sinigang, Tinola, Adobo, Pinakbet, Nilagang baka, Inihaw na isda, Paksiw, Bistek, Tortang talong, Pancit, Ginataan).
+- Every single day MUST have DIFFERENT meals — NO repetition of the same dish across days. Each breakfast, amSnack, lunch, pmSnack, and dinner must be unique across the entire plan.
+- Portions should be child-appropriate.
+- The "suggestion" field MUST contain a short, actionable daily lifestyle tip for parents (sleep, activity, hydration). Each day's suggestion should be DIFFERENT.
 - For monthly plans use labels like "Week 1 - Mon", "Week 1 - Tue", etc.
 - No markdown, no explanation, only the JSON array`;
 
@@ -283,6 +284,7 @@ CRITICAL RULES:
           amSnack: d.amSnack || '',
           lunch: d.lunch || '',
           pmSnack: d.pmSnack || '',
+          dinner: d.dinner || '',
           suggestion: d.suggestion || '',
         }));
       }
@@ -296,32 +298,32 @@ CRITICAL RULES:
 
   const weeklyFallbackByCategory: Record<typeof normalized, MealPlanDay[]> = {
     Underweight: [
-      { dayLabel: 'Monday', breakfast: 'Champorado with gatas at peanut butter', amSnack: 'Banana cue', lunch: 'Sinigang na baboy with extra rice', pmSnack: 'Palitaw', suggestion: tips[0] },
-      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg and cheese', amSnack: 'Saging na saba with milk', lunch: 'Chicken Tinola with rice + extra malunggay', pmSnack: 'Biko', suggestion: tips[1] },
-      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo with egg', amSnack: 'Turon', lunch: 'Ginataang kalabasa with chicken and rice', pmSnack: 'Pan de coco', suggestion: tips[2] },
-      { dayLabel: 'Thursday', breakfast: 'Lugaw with tokwa and egg', amSnack: 'Kamote cue', lunch: 'Adobong manok with rice', pmSnack: 'Leche flan (small portion)', suggestion: tips[3] },
-      { dayLabel: 'Friday', breakfast: 'Sopas with evaporated milk', amSnack: 'Pandesal with peanut-free spreads (if allergic)', lunch: 'Nilagang baka with rice', pmSnack: 'Fruit salad (with yogurt)', suggestion: tips[4] },
+      { dayLabel: 'Monday', breakfast: 'Champorado with gatas at peanut butter', amSnack: 'Banana cue', lunch: 'Sinigang na baboy with extra rice', pmSnack: 'Palitaw', dinner: 'Inihaw na manok with rice and buttered corn', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg and cheese', amSnack: 'Saging na saba with milk', lunch: 'Chicken Tinola with rice + extra malunggay', pmSnack: 'Biko', dinner: 'Beef bulalo soup with rice and kamote', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo with egg', amSnack: 'Turon', lunch: 'Ginataang kalabasa with chicken and rice', pmSnack: 'Pan de coco', dinner: 'Pork menudo with rice', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Lugaw with tokwa and egg', amSnack: 'Kamote cue', lunch: 'Adobong manok with rice', pmSnack: 'Leche flan (small portion)', dinner: 'Fried tilapia with rice and ensaladang talong', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Sopas with evaporated milk', amSnack: 'Pandesal with spreads', lunch: 'Nilagang baka with rice', pmSnack: 'Fruit salad with yogurt', dinner: 'Spaghetti with meat sauce and cheese', suggestion: tips[4] },
     ],
     Healthy: [
-      { dayLabel: 'Monday', breakfast: 'Pandesal with cheese', amSnack: 'Banana', lunch: 'Chicken Tinola with rice', pmSnack: 'Turon', suggestion: tips[0] },
-      { dayLabel: 'Tuesday', breakfast: 'Lugaw with egg', amSnack: 'Saging na saba', lunch: 'Pinakbet with rice and fish', pmSnack: 'Biko (small portion)', suggestion: tips[1] },
-      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo', amSnack: 'Fruit cup', lunch: 'Adobong manok with rice', pmSnack: 'Camote cue', suggestion: tips[2] },
-      { dayLabel: 'Thursday', breakfast: 'Champorado with milk', amSnack: 'Mais con yelo (small)', lunch: 'Sinigang na isda with rice', pmSnack: 'Puto', suggestion: tips[3] },
-      { dayLabel: 'Friday', breakfast: 'Sopas', amSnack: 'Pandesal', lunch: 'Ginisang monggo with rice', pmSnack: 'Fresh mango slices', suggestion: tips[4] },
+      { dayLabel: 'Monday', breakfast: 'Pandesal with cheese', amSnack: 'Banana', lunch: 'Chicken Tinola with rice', pmSnack: 'Turon', dinner: 'Sinigang na bangus with rice', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Lugaw with egg', amSnack: 'Saging na saba', lunch: 'Pinakbet with rice and fish', pmSnack: 'Biko (small portion)', dinner: 'Pork adobo with rice and steamed okra', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Arroz Caldo', amSnack: 'Fruit cup', lunch: 'Adobong manok with rice', pmSnack: 'Camote cue', dinner: 'Grilled chicken with rice and ginisang repolyo', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Champorado with milk', amSnack: 'Mais con yelo (small)', lunch: 'Sinigang na isda with rice', pmSnack: 'Puto', dinner: 'Nilagang manok with rice and pechay', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Sopas', amSnack: 'Pandesal', lunch: 'Ginisang monggo with rice', pmSnack: 'Fresh mango slices', dinner: 'Inihaw na tilapia with rice and cucumber salad', suggestion: tips[4] },
     ],
     Overweight: [
-      { dayLabel: 'Monday', breakfast: 'Oatmeal champorado (less sugar)', amSnack: 'Apple slices', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Saging na saba', suggestion: tips[0] },
-      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg (no mayo)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', suggestion: tips[1] },
-      { dayLabel: 'Wednesday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Sinigang na hipon with vegetables + small rice', pmSnack: 'Cucumber sticks with dip', suggestion: tips[2] },
-      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Orange slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Boiled corn', suggestion: tips[3] },
-      { dayLabel: 'Friday', breakfast: 'Tortang talong (less oil)', amSnack: 'Pineapple slices', lunch: 'Ginisang monggo (less chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', suggestion: tips[4] },
+      { dayLabel: 'Monday', breakfast: 'Oatmeal champorado (less sugar)', amSnack: 'Apple slices', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Saging na saba', dinner: 'Steamed fish with rice and pinakbet', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Pandesal with egg (no mayo)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', dinner: 'Tinolang manok (light) with small rice', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Sinigang na hipon with vegetables + small rice', pmSnack: 'Cucumber sticks', dinner: 'Ginisang sitaw with grilled tilapia and small rice', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Orange slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Boiled corn', dinner: 'Paksiw na isda with rice and steamed kangkong', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Tortang talong (less oil)', amSnack: 'Pineapple slices', lunch: 'Ginisang monggo (less chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', dinner: 'Chicken afritada (light) with small rice', suggestion: tips[4] },
     ],
     Obese: [
-      { dayLabel: 'Monday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Apple slices', suggestion: tips[0] },
-      { dayLabel: 'Tuesday', breakfast: 'Tortang talong (less oil)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', suggestion: tips[1] },
-      { dayLabel: 'Wednesday', breakfast: 'Oatmeal with fruit', amSnack: 'Orange slices', lunch: 'Sinigang na isda with vegetables + small rice', pmSnack: 'Boiled corn', suggestion: tips[2] },
-      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Pineapple slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Cucumber sticks', suggestion: tips[3] },
-      { dayLabel: 'Friday', breakfast: 'Champorado (less sugar, small)', amSnack: 'Guava slices', lunch: 'Ginisang monggo (no chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', suggestion: tips[4] },
+      { dayLabel: 'Monday', breakfast: 'Lugaw with chicken (light)', amSnack: 'Banana', lunch: 'Chicken Tinola (more veggies) with small rice', pmSnack: 'Apple slices', dinner: 'Steamed bangus with rice and boiled vegetables', suggestion: tips[0] },
+      { dayLabel: 'Tuesday', breakfast: 'Tortang talong (less oil)', amSnack: 'Papaya slices', lunch: 'Pinakbet with grilled fish and small rice', pmSnack: 'Watermelon', dinner: 'Sinigang na isda with extra gulay and small rice', suggestion: tips[1] },
+      { dayLabel: 'Wednesday', breakfast: 'Oatmeal with fruit', amSnack: 'Orange slices', lunch: 'Sinigang na isda with vegetables + small rice', pmSnack: 'Boiled corn', dinner: 'Inihaw na tilapia with rice and fresh tomato salad', suggestion: tips[2] },
+      { dayLabel: 'Thursday', breakfast: 'Arroz caldo (lean chicken)', amSnack: 'Pineapple slices', lunch: 'Nilagang baka (lean) with lots of gulay + small rice', pmSnack: 'Cucumber sticks', dinner: 'Ginisang monggo with malunggay and small rice', suggestion: tips[3] },
+      { dayLabel: 'Friday', breakfast: 'Champorado (less sugar, small)', amSnack: 'Guava slices', lunch: 'Ginisang monggo (no chicharon) + small rice', pmSnack: 'Yogurt (unsweetened)', dinner: 'Tortang talong with small rice and side salad', suggestion: tips[4] },
     ],
   };
 

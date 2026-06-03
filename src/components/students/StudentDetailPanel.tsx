@@ -10,15 +10,48 @@ import {
   X, Plus, FileText, Stethoscope, Calendar, User as UserIcon,
   GraduationCap, AlertCircle, Edit2, Trash2, TrendingUp, History, UtensilsCrossed, Loader2,
 } from 'lucide-react';
-import { generateAIReport } from '../../services/ai';
+import { generateAIReport, generateMealPlan } from '../../services/ai';
+import { useMealPlans } from '../../hooks/useMealPlans';
 import { cn } from '../../lib/utils';
 import { getBMICategory, calculateAge } from '../../utils/bmi';
-import type { Student, BMIRecord } from '../../types';
+import type { Student, BMIRecord, MealPlan, MealPlanDay } from '../../types';
 import { Button } from '../ui/Button';
 import { Card } from '../ui/Card';
 import { StatusBadge } from './StatusBadge';
 
 type DetailTab = 'overview' | 'evaluations' | 'history' | 'notes';
+
+type PdfWithAutoTable = jsPDF & { lastAutoTable?: { finalY: number } };
+
+async function resolveMealPlanForReport(
+  student: Student,
+  latestRecord: BMIRecord,
+  categoryLabel: string,
+  plans: MealPlan[],
+): Promise<{ meals: MealPlanDay[]; subtitle: string }> {
+  const saved = plans.find(p => p.status === 'active') ?? plans.find(p => p.meals?.length);
+  if (saved?.meals?.length) {
+    const periodLabel = saved.periodType === 'weekly' ? 'Weekly' : 'Monthly';
+    return {
+      meals: saved.meals,
+      subtitle: `${periodLabel} plan (${saved.startDate} – ${saved.endDate}) · baseline BMI ${saved.baselineBmi}`,
+    };
+  }
+
+  const meals = await generateMealPlan({
+    student,
+    latestBmi: latestRecord.bmi,
+    category: categoryLabel,
+    allergies: student.allergies || [],
+    age: calculateAge(student.dob),
+    periodType: 'weekly',
+  });
+
+  return {
+    meals,
+    subtitle: 'Suggested weekly plan — school meals + dinner at home',
+  };
+}
 
 interface StudentDetailPanelProps {
   student: Student;
@@ -43,49 +76,105 @@ export function StudentDetailPanel({
 }: StudentDetailPanelProps) {
   const [activeTab, setActiveTab] = useState<DetailTab>('overview');
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+  const { plans: mealPlans } = useMealPlans(student.id);
   const latest = records[0];
   const category = latest ? getBMICategory(latest.bmi) : null;
 
   const handleGenerateReport = async () => {
     setIsGeneratingReport(true);
     try {
-    const pdfDoc = new jsPDF();
-    pdfDoc.setFontSize(20);
-    pdfDoc.text(`Health Report: ${student.name}`, 15, 20);
-    pdfDoc.setFontSize(12);
-    pdfDoc.text(`ID: ${student.id}`, 15, 30);
-    pdfDoc.text(`Grade: ${student.grade || 'N/A'}`, 15, 37);
-    pdfDoc.text(`Gender: ${student.gender}`, 15, 44);
+      const pdfDoc = new jsPDF();
+      pdfDoc.setFontSize(20);
+      pdfDoc.text(`Health Report: ${student.name}`, 15, 20);
+      pdfDoc.setFontSize(12);
+      pdfDoc.text(`ID: ${student.id}`, 15, 30);
+      pdfDoc.text(`Grade: ${student.grade || 'N/A'}`, 15, 37);
+      pdfDoc.text(`Gender: ${student.gender}`, 15, 44);
 
-    pdfDoc.setFontSize(16);
-    pdfDoc.text('AI Health Summary', 15, 58);
-    const aiAnalysis = await generateAIReport({ student, history: records }, 'individual');
-    pdfDoc.setFontSize(10);
-    const splitText = pdfDoc.splitTextToSize(aiAnalysis || 'No analysis available.', 180);
-    pdfDoc.text(splitText, 15, 65);
+      pdfDoc.setFontSize(16);
+      pdfDoc.text('AI Health Summary', 15, 58);
+      const aiAnalysis = await generateAIReport({ student, history: records }, 'individual');
+      pdfDoc.setFontSize(10);
+      const splitText = pdfDoc.splitTextToSize(aiAnalysis || 'No analysis available.', 180);
+      pdfDoc.text(splitText, 15, 65);
 
-    let currentY = 65 + splitText.length * 5 + 10;
-    const chartElement = document.getElementById('student-detail-bmi-trend');
-    if (chartElement) {
-      try {
-        const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
-        pdfDoc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, currentY, 180, 60);
-        currentY += 70;
-      } catch (e) {
-        console.error('Chart capture failed', e);
+      let currentY = 65 + splitText.length * 5 + 10;
+      const chartElement = document.getElementById('student-detail-bmi-trend');
+      if (chartElement) {
+        try {
+          const canvas = await html2canvas(chartElement, { scale: 2, backgroundColor: '#ffffff' });
+          pdfDoc.addImage(canvas.toDataURL('image/png'), 'PNG', 15, currentY, 180, 60);
+          currentY += 70;
+        } catch (e) {
+          console.error('Chart capture failed', e);
+        }
       }
-    }
 
-    autoTable(pdfDoc, {
-      startY: currentY,
-      head: [['Date', 'Height', 'Weight', 'BMI', 'Issues']],
-      body: records.map(r => [
-        r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
-        `${r.height}cm`, `${r.weight}kg`, r.bmi.toString(),
-        r.healthIssues?.join(', ') || 'None',
-      ]),
-    });
-    pdfDoc.save(`${student.name}_Health_Report.pdf`);
+      autoTable(pdfDoc, {
+        startY: currentY,
+        head: [['Date', 'Height', 'Weight', 'BMI', 'Issues']],
+        body: records.map(r => [
+          r.timestamp ? format(r.timestamp.toDate(), 'PPP') : 'N/A',
+          `${r.height}cm`, `${r.weight}kg`, r.bmi.toString(),
+          r.healthIssues?.join(', ') || 'None',
+        ]),
+        theme: 'striped',
+        headStyles: { fillColor: [20, 184, 166] },
+      });
+
+      if (latest && category) {
+        const { meals, subtitle } = await resolveMealPlanForReport(
+          student,
+          latest,
+          category.label,
+          mealPlans,
+        );
+
+        let mealStartY = ((pdfDoc as PdfWithAutoTable).lastAutoTable?.finalY ?? currentY) + 14;
+        if (mealStartY > 240) {
+          pdfDoc.addPage();
+          mealStartY = 20;
+        }
+
+        pdfDoc.setFontSize(16);
+        pdfDoc.setTextColor(0, 0, 0);
+        pdfDoc.text('Meal Plan', 15, mealStartY);
+        pdfDoc.setFontSize(9);
+        pdfDoc.setTextColor(80, 80, 80);
+        const allergyNote = student.allergies?.length
+          ? ` · Avoid: ${student.allergies.join(', ')}`
+          : '';
+        const parentNote = ' · School meals + dinner at home';
+        pdfDoc.text(subtitle + parentNote + allergyNote, 15, mealStartY + 7);
+
+        autoTable(pdfDoc, {
+          startY: mealStartY + 12,
+          head: [['Day', 'Breakfast', 'AM Snack', 'Lunch', 'PM Snack', 'Dinner', 'Daily Tip']],
+          body: meals.map(d => [
+            d.dayLabel,
+            d.breakfast,
+            d.amSnack || '—',
+            d.lunch,
+            d.pmSnack || '—',
+            d.dinner || '—',
+            d.suggestion || '—',
+          ]),
+          theme: 'striped',
+          styles: { fontSize: 6, cellPadding: 1.5, overflow: 'linebreak' },
+          headStyles: { fillColor: [20, 184, 166], fontSize: 6 },
+          columnStyles: {
+            0: { cellWidth: 18 },
+            1: { cellWidth: 26 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 26 },
+            4: { cellWidth: 20 },
+            5: { cellWidth: 26 },
+            6: { cellWidth: 24 },
+          },
+        });
+      }
+
+      pdfDoc.save(`${student.name}_Health_Report.pdf`);
     } finally {
       setIsGeneratingReport(false);
     }

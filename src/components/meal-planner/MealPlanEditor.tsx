@@ -64,7 +64,7 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
         <div className="overflow-x-auto">
 
-          <table className="w-full text-sm min-w-[640px]">
+          <table className="w-full text-sm min-w-[800px]">
 
             <thead>
 
@@ -80,6 +80,8 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                 <th className="p-3 text-[10px] font-bold text-text-muted uppercase">PM Snack</th>
 
+                <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Dinner</th>
+
                 <th className="p-3 text-[10px] font-bold text-text-muted uppercase">Suggestion</th>
 
               </tr>
@@ -92,13 +94,15 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                 const mealIndex = start + i;
 
+                const fields = ['breakfast', 'amSnack', 'lunch', 'pmSnack', 'dinner', 'suggestion'] as const;
+
                 return (
 
                   <tr key={`${day.dayLabel}-${mealIndex}`} className="border-t border-border">
 
                     <td className="p-2 font-semibold text-text whitespace-nowrap">{day.dayLabel}</td>
 
-                    {(['breakfast', 'amSnack', 'lunch', 'pmSnack', 'suggestion'] as const).map(field => (
+                    {fields.map(field => (
 
                       <td key={field} className="p-2">
 
@@ -110,7 +114,13 @@ export function MealPlanEditor({ meals, onChange, notes, onNotesChange }: MealPl
 
                           className="h-9 text-xs"
 
-                          placeholder={field === 'breakfast' || field === 'lunch' ? 'Required' : field === 'suggestion' ? 'e.g., Sleep 10 hrs' : 'Optional'}
+                          placeholder={
+                            field === 'suggestion'
+                              ? 'e.g., Sleep 10 hrs'
+                              : field === 'amSnack' || field === 'pmSnack'
+                                ? 'Optional'
+                                : 'Required'
+                          }
 
                         />
 
